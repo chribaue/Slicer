@@ -3,6 +3,7 @@ import unittest
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
+from sets import Set
 
 #
 # SegmentStatistics
@@ -25,9 +26,9 @@ Use this module to calculate counts and volumes for segments plus statistics on 
 Computed fields:
 Segment labelmap stastistics (LM): voxel count, volume mm3, volume cc.
 Requires segment labelmap representation.
-Grayscale volume statistics (GS): voxel count, volume mm3, volume cc (where segments overlap grayscale volume),
+Scalar volume statistics (SV): voxel count, volume mm3, volume cc (where segments overlap scalar volume),
 min, max, mean, stdev (intensity statistics).
-Requires segment labelmap representation and selection of a grayscale volume
+Requires segment labelmap representation and selection of a scalar volume
 Closed surface statistics (CS): surface mm2, volume mm3, volume cc (computed from closed surface).
 Requires segment closed surface representation.
 """
@@ -81,17 +82,17 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
     self.segmentationSelector.setToolTip( "Pick the segmentation to compute statistics for" )
     inputsFormLayout.addRow("Segmentation:", self.segmentationSelector)
 
-    # Grayscale volume selector
-    self.grayscaleSelector = slicer.qMRMLNodeComboBox()
-    self.grayscaleSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
-    self.grayscaleSelector.addEnabled = False
-    self.grayscaleSelector.removeEnabled = True
-    self.grayscaleSelector.renameEnabled = True
-    self.grayscaleSelector.noneEnabled = True
-    self.grayscaleSelector.showChildNodeTypes = False
-    self.grayscaleSelector.setMRMLScene( slicer.mrmlScene )
-    self.grayscaleSelector.setToolTip( "Select the grayscale volume for intensity statistics calculations")
-    inputsFormLayout.addRow("Grayscale volume:", self.grayscaleSelector)
+    # Scalar volume selector
+    self.scalarSelector = slicer.qMRMLNodeComboBox()
+    self.scalarSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.scalarSelector.addEnabled = False
+    self.scalarSelector.removeEnabled = True
+    self.scalarSelector.renameEnabled = True
+    self.scalarSelector.noneEnabled = True
+    self.scalarSelector.showChildNodeTypes = False
+    self.scalarSelector.setMRMLScene( slicer.mrmlScene )
+    self.scalarSelector.setToolTip( "Select the scalar volume for intensity statistics calculations")
+    inputsFormLayout.addRow("Scalar volume:", self.scalarSelector)
 
     # Output table selector
     outputCollapsibleButton = ctk.ctkCollapsibleButton()
@@ -139,12 +140,21 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
     self.parameterNodeSelector.setToolTip( "Pick parameter set" )
     self.parametersLayout.addRow("Parameter set: ", self.parameterNodeSelector)
 
+    # Edit parameter set button to open SegmentStatisticsParameterEditorDialog
+    # Note: we add the calculators' option widgets to the module widget instead of using the editor dialog
+    #self.editParametersButton = qt.QPushButton("Edit Parameter Set")
+    #self.editParametersButton.toolTip = "Editor Statistics Calculator Parameter Set."
+    #self.parametersLayout.addRow(self.editParametersButton)
+    #self.editParametersButton.connect('clicked()', self.onEditParameters)
+    # add caclulator's option widgets
+    self.addCalculatorOptionWidgets()
+
     # Add vertical spacer
     self.parent.layout().addStretch(1)
 
     # connections
     self.applyButton.connect('clicked()', self.onApply)
-    self.grayscaleSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onNodeSelectionChanged)
+    self.scalarSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onNodeSelectionChanged)
     self.segmentationSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onNodeSelectionChanged)
     self.outputTableSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onNodeSelectionChanged)
     self.parameterNodeSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onNodeSelectionChanged)
@@ -152,7 +162,6 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
 
     self.parameterNodeSelector.setCurrentNode(self.logic.getParameterNode())
     self.onNodeSelectionChanged()
-    self.updateOptions()
 
   def cleanup(self):
     if self.parameterNode and self.parameterNodeObserver:
@@ -172,8 +181,15 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
     self.applyButton.text = "Working..."
     self.applyButton.setEnabled(False)
     slicer.app.processEvents()
+    # set up parameters for computation
+    self.logic.getParameterNode().SetParameter("Segmentation", self.segmentationSelector.currentNode().GetID())
+    if self.scalarSelector.currentNode():
+      self.logic.getParameterNode().SetParameter("ScalarVolume", self.scalarSelector.currentNode().GetID())
+    else:
+      self.logic.getParameterNode().UnsetParameter("ScalarVolume")
+    self.logic.getParameterNode().SetParameter("MeasurementsTable", self.outputTableSelector.currentNode().GetID())
     # Compute statistics
-    self.logic.computeStatistics(self.segmentationSelector.currentNode(), self.grayscaleSelector.currentNode())
+    self.logic.computeStatistics()
     self.logic.exportToTable(self.outputTableSelector.currentNode())
     # Unlock GUI
     self.applyButton.setEnabled(True)
@@ -181,8 +197,12 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
 
     self.logic.showTable(self.outputTableSelector.currentNode())
 
-  def updateOptions(self):
-    #self.optionsFormLayout.clear()
+  def onEditParameters(self):
+      """Open dialog box to edit calculator's parameters"""
+      if self.parameterNodeSelector.currentNode():
+        SegmentStatisticsParameterEditorDialog.editParameters(self.parameterNodeSelector.currentNode())
+
+  def addCalculatorOptionWidgets(self):
     for calculator in self.logic.calculators:
       calculatorOptionsCollapsibleButton = ctk.ctkCollapsibleGroupBox()
       calculatorOptionsCollapsibleButton.setTitle( calculator.name )
@@ -197,15 +217,14 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
     if self.parameterNode:
       self.logic.setParameterNode(self.parameterNode)
       self.parameterNodeObserver = self.parameterNode.AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateGuiFromParameterNode)
-    self.updateGuiFromParameterNode()
 
   def updateGuiFromParameterNode(self, caller=None, event=None):
-    # NOTE: nothing to do so far; GUI updates are handled in the calculator classes
-    pass
+    if not self.parameterNode:
+      return
 
   def updateParameterNodeFromGui(self):
-    # NOTE: nothing to do so far; paramter node updates are handled in the calculator classes
-    pass
+    if not self.parameterNode:
+      return
 
 class SegmentStatisticsCalculatorBase(object):
   """Base class for statistics calculators operating on segments.
@@ -214,7 +233,8 @@ class SegmentStatisticsCalculatorBase(object):
   """
   def __init__(self):
     self.name = "" # name of the statistics calculator
-    self.keys = () # keys for all supported measurements
+    self.id = "" # short unique identifier for calculator to distinuish between similar measurements by different calculators
+    self.keys = () # keys for all supported measurements; should have format "CalculatorName.measurement"; e.g. "Labelmap.volume cc"
     self.defaultKeys = () # measurements that will be enabled by default
     self.optionsWidget = qt.QWidget()
     self.requestedKeysCheckboxes = {}
@@ -225,20 +245,35 @@ class SegmentStatisticsCalculatorBase(object):
     if self.parameterNode and self.parameterNodeObserver:
       self.parameterNode.RemoveObserver(self.parameterNodeObserver)
 
-  def computeStatistics(self, segmentationNode, segmentID, grayscaleNode=None):
+  def computeStatistics(self, segmentID):
     """Compute measurements for requested keys on the given segment"""
     stats = {}
+    #segmentationNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("Segmentation"))
+    #grayscaleNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("ScalarVolume"))
     #for key in self.getRequestedKeys():
     #  stats[key] = ...
     return stats
 
-  def getMeasurementInfo(self, key, segmentationNode=None, grayscaleNode=None):
+  def getMeasurementInfo(self, key):
     """Get information (name, description, units, ...) about the measurement for the given key"""
     if key not in self.keys:
       return None
+    if key.startswith(self.name+'.'):
+      key = key[len(self.name+'.'):]
     return {"name": key, "description": key, "units": None}
 
+  def getDICOMTriplet(self, codeValue, codingSchemeDesignator, codeMeaning):
+    """Utillity method to form DICOM triplets in getMeasurementInfo"""
+    return {'CodeValue':codeValue,
+            'CodingSchemeDesignator': codingSchemeDesignator,
+            'CodeMeaning': codeMeaning}
+
   def setDefaultParameters(self, parameterNode, overwriteExisting=False):
+    # enable calculator
+    parameter = self.name+'.enabled'
+    if not parameterNode.GetParameter(parameter):
+      parameterNode.SetParameter(parameter, str(True))
+    # enable all default keys
     for key in self.keys:
       parameter = key+'.enabled'
       if not parameterNode.GetParameter(parameter) or overwriteExisting:
@@ -267,6 +302,12 @@ class SegmentStatisticsCalculatorBase(object):
   def createDefaultOptionsWidget(self):
     # create list of checkboxes that allow selection of requested keys
     form = qt.QFormLayout(self.optionsWidget)
+
+    # checkbox to enable/disable calculator
+    self.calculatorCheckbox = qt.QCheckBox(self.name+" calculator enabled")
+    self.calculatorCheckbox.checked = True
+    self.calculatorCheckbox.connect('stateChanged(int)', self.updateParameterNodeFromGui)
+    form.addRow(self.calculatorCheckbox)
 
     # select all/none/default buttons
     selectAllNoneFrame = qt.QFrame(self.optionsWidget)
@@ -307,6 +348,8 @@ class SegmentStatisticsCalculatorBase(object):
   def updateGuiFromParameterNode(self, caller=None, event=None):
     if not self.parameterNode:
       return
+    isEnabled = self.parameterNode.GetParameter(self.name+'.enabled')!='False'
+    self.calculatorCheckbox.checked = isEnabled
     for (key, checkbox) in self.requestedKeysCheckboxes.iteritems():
       parameter = key+'.enabled'
       value = self.parameterNode.GetParameter(parameter)=='True'
@@ -314,10 +357,15 @@ class SegmentStatisticsCalculatorBase(object):
         checkbox.blockSignals(True)
         checkbox.checked = value
         checkbox.blockSignals(False)
+      if checkbox.enabled!=isEnabled:
+        checkbox.blockSignals(True)
+        checkbox.enabled = isEnabled
+        checkbox.blockSignals(False)
 
   def updateParameterNodeFromGui(self):
     if not self.parameterNode:
       return
+    self.parameterNode.SetParameter(self.name+'.enabled',str(self.calculatorCheckbox.checked))
     for (key, checkbox) in self.requestedKeysCheckboxes.iteritems():
       parameter = key+'.enabled'
       newValue = str(checkbox.checked)
@@ -350,19 +398,23 @@ class SegmentStatisticsCalculatorBase(object):
       return
     self.setDefaultParameters(self.parameterNode,overwriteExisting=True)
 
-class SegmentLabelmapStatisticsCalculator(SegmentStatisticsCalculatorBase):
+class LabelmapSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
+  """Statistical calculator for Labelmaps"""
 
   def __init__(self):
-    super(SegmentLabelmapStatisticsCalculator,self).__init__()
-    self.name = "Labelmap Statistics"
-    self.keys = ("LM voxel count", "LM volume mm3", "LM volume cc")
-    self.defaultKeys = ("LM voxel count", "LM volume mm3", "LM volume cc") # calculate all measurements by default
-    super(SegmentLabelmapStatisticsCalculator,self).createDefaultOptionsWidget()
+    super(LabelmapSegmentStatisticsCalculator,self).__init__()
+    self.name = "Labelmap"
+    self.id = "LM"
+    self.keys = tuple(self.name+'.'+m for m in ("voxel count", "volume mm3", "volume cc"))
+    self.defaultKeys = self.keys # calculate all measurements by default
+    super(LabelmapSegmentStatisticsCalculator,self).createDefaultOptionsWidget()
     #... developer may add extra options to configure other parameters
 
-  def computeStatistics(self, segmentationNode, segmentID, grayscaleNode=None):
+  def computeStatistics(self, segmentID):
     import vtkSegmentationCorePython as vtkSegmentationCore
     requestedKeys = self.getRequestedKeys()
+
+    segmentationNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("Segmentation"))
 
     if len(requestedKeys)==0:
       return {}
@@ -401,35 +453,40 @@ class SegmentLabelmapStatisticsCalculator(SegmentStatisticsCalculatorBase):
     cubicMMPerVoxel = reduce(lambda x,y: x*y, segmentLabelmap.GetSpacing())
     ccPerCubicMM = 0.001
     stats = {}
-    if "LM voxel count" in requestedKeys:
-      stats["LM voxel count"] = stat.GetVoxelCount()
-    if "LM volume mm3" in requestedKeys:
-      stats["LM volume mm3"] = stat.GetVoxelCount() * cubicMMPerVoxel
-    if "LM volume cc" in requestedKeys:
-      stats["LM volume cc"] = stat.GetVoxelCount() * cubicMMPerVoxel* ccPerCubicMM
+    if "Labelmap.voxel count" in requestedKeys:
+      stats["Labelmap.voxel count"] = stat.GetVoxelCount()
+    if "Labelmap.volume mm3" in requestedKeys:
+      stats["Labelmap.volume mm3"] = stat.GetVoxelCount() * cubicMMPerVoxel
+    if "Labelmap.volume cc" in requestedKeys:
+      stats["Labelmap.volume cc"] = stat.GetVoxelCount() * cubicMMPerVoxel* ccPerCubicMM
     return stats
 
-  def getMeasurementInfo(self, key, segmentationNode=None, grayscaleNode=None):
+  def getMeasurementInfo(self, key):
     """Get information (name, description, units, ...) about the measurement for the given key"""
     info = {}
-    info["LM voxel count"] = {"name": "voxel count", "description": "number of voxels", "units": None}
-    info["LM volume mm3"] = {"name": "volume", "description": "volume in mm3", "units": "mm3"}
-    info["LM volume cc"] =  {"name": "volume", "description": "volume in cc", "units": "cc"}
+    info["Labelmap.voxel count"] = {"name": "voxel count", "description": "number of voxels", "units": None}
+    info["Labelmap.volume mm3"] = {"name": "volume mm3", "description": "volume in mm3", "units": "mm3"}
+    info["Labelmap.volume cc"] =  {"name": "volume cc", "description": "volume in cc", "units": "cc"}
     return info[key] if key in info else None
 
-class SegmentGrayscaleVolumeStatisticsCalculator(SegmentStatisticsCalculatorBase):
+class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
+  """Statistical calculator for segmetnations with scalar volumes"""
 
   def __init__(self):
-    super(SegmentGrayscaleVolumeStatisticsCalculator,self).__init__()
-    self.name = "Grayscale Volume Statistics"
-    self.keys = ("GS voxel count", "GS volume mm3", "GS volume cc", "GS min", "GS max", "GS mean", "GS stdev")
-    self.defaultKeys = ("GS voxel count", "GS volume mm3", "GS volume cc", "GS min", "GS max", "GS mean", "GS stdev") # calculate all measurements by default
-    super(SegmentGrayscaleVolumeStatisticsCalculator,self).createDefaultOptionsWidget()
+    super(ScalarVolumeSegmentStatisticsCalculator,self).__init__()
+    self.name = "Scalar Volume"
+    self.id = "SV"
+    self.keys = tuple(self.name+'.'+m for m in ("voxel count", "volume mm3", "volume cc", "min", "max", "mean", "stdev"))
+    self.defaultKeys = self.keys # calculate all measurements by default
+    super(ScalarVolumeSegmentStatisticsCalculator,self).createDefaultOptionsWidget()
     #... developer may add extra options to configure other parameters
 
-  def computeStatistics(self, segmentationNode, segmentID, grayscaleNode):
+  def computeStatistics(self, segmentID):
     import vtkSegmentationCorePython as vtkSegmentationCore
     requestedKeys = self.getRequestedKeys()
+
+    segmentationNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("Segmentation"))
+    grayscaleNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("ScalarVolume"))
 
     if len(requestedKeys)==0:
       return {}
@@ -491,48 +548,52 @@ class SegmentGrayscaleVolumeStatisticsCalculator(SegmentStatisticsCalculatorBase
 
     # create statistics list
     stats = {}
-    if "GS voxel count" in requestedKeys:
-      stats["GS voxel count"] = stat.GetVoxelCount()
-    if "GS volume mm3" in requestedKeys:
-      stats["GS volume mm3"] = stat.GetVoxelCount() * cubicMMPerVoxel
-    if "GS volume cc" in requestedKeys:
-      stats["GS volume cc"] = stat.GetVoxelCount() * cubicMMPerVoxel * ccPerCubicMM
+    if "Scalar Volume.voxel count" in requestedKeys:
+      stats["Scalar Volume.voxel count"] = stat.GetVoxelCount()
+    if "Scalar Volume.volume mm3" in requestedKeys:
+      stats["Scalar Volume.volume mm3"] = stat.GetVoxelCount() * cubicMMPerVoxel
+    if "Scalar Volume.volume cc" in requestedKeys:
+      stats["Scalar Volume.volume cc"] = stat.GetVoxelCount() * cubicMMPerVoxel * ccPerCubicMM
     if stat.GetVoxelCount()>0:
-      if "GS min" in requestedKeys:
-        stats["GS min"] = stat.GetMin()[0]
-      if "GS max" in requestedKeys:
-        stats["GS max"] = stat.GetMax()[0]
-      if "GS mean" in requestedKeys:
-        stats["GS mean"] = stat.GetMean()[0]
-      if "GS stdev" in requestedKeys:
-        stats["GS stdev"] = stat.GetStandardDeviation()[0]
+      if "Scalar Volume.min" in requestedKeys:
+        stats["Scalar Volume.min"] = stat.GetMin()[0]
+      if "Scalar Volume.max" in requestedKeys:
+        stats["Scalar Volume.max"] = stat.GetMax()[0]
+      if "Scalar Volume.mean" in requestedKeys:
+        stats["Scalar Volume.mean"] = stat.GetMean()[0]
+      if "Scalar Volume.stdev" in requestedKeys:
+        stats["Scalar Volume.stdev"] = stat.GetStandardDeviation()[0]
     return stats
 
-  def getMeasurementInfo(self, key, segmentationNode=None, grayscaleNode=None):
+  def getMeasurementInfo(self, key):
     """Get information (name, description, units, ...) about the measurement for the given key"""
     info = {}
-    info["GS voxel count"] = {"name": "voxel count", "description": "number of voxels", "units": None}
-    info["GS volume mm3"] = {"name": "volume", "description": "volume in mm3", "units": "mm3"}
-    info["GS volume cc"] = {"name": "volume", "description": "volume in cc", "units": "cc"}
-    info["GS min"] = {"name": "minimum", "description": "minimum grayvalue", "units": None}
-    info["GS max"] = {"name": "maximum", "description": "maximum grayvalue", "units": None}
-    info["GS mean"] = {"name": "mean", "description": "mean grayvalue", "units": None}
-    info["GS stdev"] = {"name": "standard deviation", "description": "standard deviation of grayvalues", "units": None}
+    info["Scalar Volume.voxel count"] = {"name": "voxel count", "description": "number of voxels", "units": None}
+    info["Scalar Volume.volume mm3"] = {"name": "volume mm3", "description": "volume in mm3", "units": "mm3"}
+    info["Scalar Volume.volume cc"] = {"name": "volume cc", "description": "volume in cc", "units": "cc"}
+    info["Scalar Volume.min"] = {"name": "minimum", "description": "minimum scalar value", "units": None}
+    info["Scalar Volume.max"] = {"name": "maximum", "description": "maximum scalar value", "units": None}
+    info["Scalar Volume.mean"] = {"name": "mean", "description": "mean scalar value", "units": None}
+    info["Scalar Volume.stdev"] = {"name": "standard deviation", "description": "standard deviation of scalar values", "units": None}
     return info[key] if key in info else None
 
-class SegmentClosedSurfaceStatisticsCalculator(SegmentStatisticsCalculatorBase):
+class ClosedSurfaceSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
+  """Statistical calculator for closed surfaces"""
 
   def __init__(self):
-    super(SegmentClosedSurfaceStatisticsCalculator,self).__init__()
-    self.name = "Closed Surface Statistics"
-    self.keys = ("CS surface mm2", "CS volume mm3", "CS volume cc")
-    self.defaultKeys = ("CS surface mm2", "CS volume mm3", "CS volume cc") # calculate all measurements by default
-    super(SegmentClosedSurfaceStatisticsCalculator,self).createDefaultOptionsWidget()
+    super(ClosedSurfaceSegmentStatisticsCalculator,self).__init__()
+    self.name = "Closed Surface"
+    self.id = "CS"
+    self.keys = tuple(self.name+'.'+m for m in ("surface mm2", "volume mm3", "volume cc"))
+    self.defaultKeys = self.keys # calculate all measurements by default
+    super(ClosedSurfaceSegmentStatisticsCalculator,self).createDefaultOptionsWidget()
     #... developer may add extra options to configure other parameters
 
-  def computeStatistics(self, segmentationNode, segmentID, grayscaleNode=None):
+  def computeStatistics(self, segmentID):
     import vtkSegmentationCorePython as vtkSegmentationCore
     requestedKeys = self.getRequestedKeys()
+
+    segmentationNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("Segmentation"))
 
     if len(requestedKeys)==0:
       return {}
@@ -552,21 +613,79 @@ class SegmentClosedSurfaceStatisticsCalculator(SegmentStatisticsCalculatorBase):
     # Add data to statistics list
     ccPerCubicMM = 0.001
     stats = {}
-    if "CS surface mm2" in requestedKeys:
-      stats["CS surface mm2"] = massProperties.GetSurfaceArea()
-    if "CS volume mm3" in requestedKeys:
-      stats["CS volume mm3"] = massProperties.GetVolume()
-    if "CS volume cc" in requestedKeys:
-      stats["CS volume cc"] = massProperties.GetVolume() * ccPerCubicMM
+    if "Closed Surface.surface mm2" in requestedKeys:
+      stats["Closed Surface.surface mm2"] = massProperties.GetSurfaceArea()
+    if "Closed Surface.volume mm3" in requestedKeys:
+      stats["Closed Surface.volume mm3"] = massProperties.GetVolume()
+    if "Closed Surface.volume cc" in requestedKeys:
+      stats["Closed Surface.volume cc"] = massProperties.GetVolume() * ccPerCubicMM
     return stats
 
-  def getMeasurementInfo(self, key, segmentationNode=None, grayscaleNode=None):
+  def getMeasurementInfo(self, key):
     """Get information (name, description, units, ...) about the measurement for the given key"""
     info = {}
-    info["CS surface mm2"] = {"name": "surface", "description": "surface area in mm2", "units": "mm2"}
-    info["CS volume mm3"] = {"name": "volume", "description": "volume in mm3", "units": "mm3"}
-    info["CS volume cc"] = {"name": "volume", "description": "volume in cc", "units": "cc"}
+    info["Closed Surface.surface mm2"] = {"name": "surface mm2", "description": "surface area in mm2", "units": "mm2"}
+    info["Closed Surface.volume mm3"] = {"name": "volume mm3", "description": "volume in mm3", "units": "mm3"}
+    info["Closed Surface.volume cc"] = {"name": "volume cc", "description": "volume in cc", "units": "cc"}
     return info[key] if key in info else None
+
+class SegmentStatisticsParameterEditorDialog(qt.QDialog):
+    """Dialog to edit parameters of segment statistics calculators.
+    Most users will only need to call the static method editParameters(parameterNode)
+    """
+
+    @staticmethod
+    def editParameters(parameterNode):
+      """Excutes a modal dialog to edit a segment statstics parameter node"""
+      dialog = SegmentStatisticsParameterEditorDialog()
+      dialog.setParameterNode(parameterNode)
+      return dialog.exec_()
+
+    def __init__(self,parent=None):
+      super(qt.QDialog,self).__init__(parent)
+      self.title = "Edit Segment Statistics Parameters"
+      self.parameterNode = None
+      self.logic = SegmentStatisticsLogic() # for access to calculators and editor widgets
+      self.setup()
+
+    def setParameterNode(self, parameterNode):
+      """Set the parameter node the dialog will operate on"""
+      if parameterNode==self.parameterNode:
+        return
+      self.parameterNode = parameterNode
+      self.logic.setParameterNode(self.parameterNode)
+
+    def setup(self):
+      self.setLayout(qt.QVBoxLayout())
+
+      self.doneButton = qt.QPushButton("Done")
+      self.doneButton.toolTip = "Finish editing."
+      doneWidget = qt.QWidget(self)
+      doneWidget.setLayout(qt.QHBoxLayout())
+      doneWidget.layout().addStretch(1)
+      doneWidget.layout().addWidget(self.doneButton, 0)
+
+      parametersScrollArea = qt.QScrollArea(self)
+      parametersWidget = qt.QWidget(parametersScrollArea)
+      self.parametersLayout = qt.QFormLayout(parametersWidget)
+      self.addCalculatorOptionWidgets()
+      parametersScrollArea.setWidget(parametersWidget)
+      parametersScrollArea.widgetResizable = True
+      parametersScrollArea.setVerticalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOn )
+      parametersScrollArea.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+
+      self.layout().addWidget(qt.QLabel("Edit segment statistics calculator parameters:"),0)
+      self.layout().addWidget(parametersScrollArea, 1)
+      self.layout().addWidget(doneWidget, 0)
+      self.doneButton.connect('clicked()', lambda: self.done(1))
+
+    def addCalculatorOptionWidgets(self):
+      for calculator in self.logic.calculators:
+        calculatorOptionsCollapsibleButton = ctk.ctkCollapsibleGroupBox()
+        calculatorOptionsCollapsibleButton.setTitle( calculator.name )
+        calculatorOptionsFormLayout = qt.QFormLayout(calculatorOptionsCollapsibleButton)
+        calculatorOptionsFormLayout.addRow(calculator.optionsWidget)
+        self.parametersLayout.addRow(calculatorOptionsCollapsibleButton)
 
 #
 # SegmentStatisticsLogic
@@ -580,15 +699,19 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
   Uses ScriptedLoadableModuleLogic base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
-  registeredCalculators = [SegmentLabelmapStatisticsCalculator, SegmentGrayscaleVolumeStatisticsCalculator, SegmentClosedSurfaceStatisticsCalculator]
+  registeredCalculators = [LabelmapSegmentStatisticsCalculator, ScalarVolumeSegmentStatisticsCalculator, ClosedSurfaceSegmentStatisticsCalculator]
 
   @staticmethod
   def registerCalculator(calculator):
     """Register a subclass of SegmentStatisticsCalculatorBase for calculation of additional measurements"""
     if not isinstance(calculator, SegmentStatisticsCalculatorBase):
       return
-    if not calculator.__class__ in SegmentStatisticsLogic.registeredCalculators:
+    if not calculator.__class__ in SegmentStatisticsLogic.registeredCalculators and \
+       not calculator.id in [c().id for c in SegmentStatisticsLogic.registeredCalculators]:
       SegmentStatisticsLogic.registeredCalculators.append(calculator.__class__)
+    else:
+      logging.warning("SegmentStatisticsLogic.registerCalculator will not register calculator because \
+                       another calculator with the same name or id has already been registered")
 
   def __init__(self, parent = None):
     ScriptedLoadableModuleLogic.__init__(self, parent)
@@ -602,6 +725,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     self.reset()
 
   def getParameterNode(self):
+    """Returns the current paramter node and creates one if it doesn't exist yet"""
     if not self.parameterNode:
       self.setParameterNode( ScriptedLoadableModuleLogic.getParameterNode(self) )
     return self.parameterNode
@@ -618,65 +742,72 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
   def setDefaultParameters(self, parameterNode):
     """Set all calculators to enabled and all calculators' parameters to their default value"""
     for calculator in self.calculators:
-      parameter = calculator.name+'.enabled'
-      if not parameterNode.GetParameter(parameter):
-        parameterNode.SetParameter(parameter, str(True))
       calculator.setDefaultParameters(parameterNode)
+    if not parameterNode.GetParameter('visibleSegmentsOnly'):
+      parameterNode.SetParameter('visibleSegmentsOnly', str(True))
+
+  def getStatistics(self):
+    """Get the calculated statistical measurements"""
+    params = self.getParameterNode()
+    if not hasattr(params,'statistics'):
+      params.statistics = {}
+      params.statistics["SegmentIDs"] = []
+    return params.statistics
 
   def reset(self):
     """Clear all computation results"""
     self.keys = ("Segment",)
     for calculator in self.calculators:
       self.keys += calculator.keys
-    self.statistics = {}
-    self.statistics["SegmentIDs"] = []
+    params = self.getParameterNode()
+    params.statistics = {}
+    params.statistics["SegmentIDs"] = []
 
-  def computeStatistics(self, segmentationNode, grayscaleNode, visibleSegmentsOnly = True):
+  def computeStatistics(self):
     """Compute statistical measures for all (visibile) segments"""
     import vtkSegmentationCorePython as vtkSegmentationCore
 
     self.reset()
 
-    self.segmentationNode = segmentationNode
-    self.grayscaleNode = grayscaleNode
+    segmentationNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("Segmentation"))
 
     # Get segment ID list
     visibleSegmentIds = vtk.vtkStringArray()
-    if visibleSegmentsOnly:
-      self.segmentationNode.GetDisplayNode().GetVisibleSegmentIDs(visibleSegmentIds)
+    if self.getParameterNode().GetParameter('visibleSegmentsOnly')=='True':
+      segmentationNode.GetDisplayNode().GetVisibleSegmentIDs(visibleSegmentIds)
     else:
-      self.segmentationNode.GetSegmentation().GetSegmentIDs(visibleSegmentIds)
+      segmentationNode.GetSegmentation().GetSegmentIDs(visibleSegmentIds)
     if visibleSegmentIds.GetNumberOfValues() == 0:
       logging.debug("computeStatistics will not return any results: there are no visible segments")
 
     # update statistics for all segment IDs
     for segmentIndex in range(visibleSegmentIds.GetNumberOfValues()):
       segmentID = visibleSegmentIds.GetValue(segmentIndex)
-      self.updateStatisticsForSegment(segmentID, segmentationNode, grayscaleNode)
+      self.updateStatisticsForSegment(segmentID)
 
-  def updateStatisticsForSegment(self, segmentID, segmentationNode, grayscaleNode=None):
+  def updateStatisticsForSegment(self, segmentID):
     """
     Update statistical measures for specified segment.
     Note: This will not change or reset measurement results of other segments
     """
-    self.segmentationNode = segmentationNode
-    self.grayscaleNode = grayscaleNode
+    segmentationNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("Segmentation"))
 
-    if not self.segmentationNode.GetSegmentation().GetSegment(segmentID):
+    if not segmentationNode.GetSegmentation().GetSegment(segmentID):
       logging.debug("updateStatisticsForSegment will not update any results because the segment doesn't exist")
       return
 
-    segment = self.segmentationNode.GetSegmentation().GetSegment(segmentID)
-    if segmentID not in self.statistics["SegmentIDs"]:
-      self.statistics["SegmentIDs"].append(segmentID)
-    self.statistics[segmentID,"Segment"] = segment.GetName()
+    segment = segmentationNode.GetSegmentation().GetSegment(segmentID)
+    statistics = self.getStatistics()
+    if segmentID not in statistics["SegmentIDs"]:
+      statistics["SegmentIDs"].append(segmentID)
+    statistics[segmentID,"Segment"] = segment.GetName()
 
     # apply all enabled calculators
     for calculator in self.calculators:
       if self.getParameterNode().GetParameter(calculator.name+'.enabled')=='True':
-        stats = calculator.computeStatistics(self.segmentationNode, segmentID, self.grayscaleNode)
+        stats = calculator.computeStatistics(segmentID)
         for key in stats:
-          self.statistics[segmentID,key] = stats[key]
+          statistics[segmentID,key] = stats[key]
 
   def getCalculatorByKey(self, key):
     """Get calculator responsible for obtaining measurement value for given key"""
@@ -685,16 +816,17 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
         return calculator
     return None
 
-  def getMeasurementInfo(self, key, segmentationNode=None, grayscaleNode=None):
+  def getMeasurementInfo(self, key):
     """Get information (name, description, units, ...) about the measurement for the given key"""
     calculator = self.getCalculatorByKey(key)
     if calculator:
-      return calculator.getMeasurementInfo(key, segmentationNode, grayscaleNode)
+      return calculator.getMeasurementInfo(key)
     return None
 
   def getStatisticsValueAsString(self, segmentID, key):
-    if self.statistics.has_key((segmentID, key)):
-      value = self.statistics[segmentID, key]
+    statistics = self.getStatistics()
+    if statistics.has_key((segmentID, key)):
+      value = statistics[segmentID, key]
       if isinstance(value, float):
         return "%0.3f" % value # round to 3 decimals
       else:
@@ -704,10 +836,11 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
 
   def getNonEmptyKeys(self):
     # Fill columns
+    statistics = self.getStatistics()
     nonEmptyKeys = []
     for key in self.keys:
-      for segmentID in self.statistics["SegmentIDs"]:
-        if self.statistics.has_key((segmentID, key)):
+      for segmentID in statistics["SegmentIDs"]:
+        if statistics.has_key((segmentID, key)):
           nonEmptyKeys.append(key)
           break
     return nonEmptyKeys
@@ -721,24 +854,33 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
 
     keys = self.getNonEmptyKeys() if nonEmptyKeysOnly else self.keys
 
+    # Count number of calculators that produced measurements
+    calculatorsWithResults = Set([self.getCalculatorByKey(k) for k in keys])
+    calculatorsWithResults.remove(None)
+
     # Define table columns
     for k in keys:
       col = table.AddColumn()
-      col.SetName(k)
-      measurementInfo = self.getMeasurementInfo(k, self.segmentationNode, self.grayscaleNode)
+      calculator = self.getCalculatorByKey(k)
+      measurementInfo = self.getMeasurementInfo(k)
+      columnName =  measurementInfo['name'] if measurementInfo and 'name' in measurementInfo else k
+      columnName += ' ['+calculator.id+']' if (calculator and len(calculatorsWithResults)>1) else ''
+      col.SetName( columnName )
       if measurementInfo:
         for mik, miv in measurementInfo.iteritems():
           if mik=='name':
-            table.SetColumnLongName(k, str(miv))
+            table.SetColumnLongName(columnName, str(miv))
           elif mik=='description':
-            table.SetColumnDescription(k, str(miv))
+            table.SetColumnDescription(columnName, str(miv))
           elif mik=='units':
-            table.SetColumnUnitLabel(k, str(miv))
+            table.SetColumnUnitLabel(columnName, str(miv))
           else:
-            table.SetColumnProperty(k, mik, str(miv))
+            #print "property: "+str(mik)+" -> "+str(miv)
+            table.SetColumnProperty(columnName, str(mik), str(miv))
 
     # Fill columns
-    for segmentID in self.statistics["SegmentIDs"]:
+    statistics = self.getStatistics()
+    for segmentID in statistics["SegmentIDs"]:
       rowIndex = table.AddEmptyRow()
       columnIndex = 0
       for k in keys:
@@ -750,7 +892,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
 
   def showTable(self, table):
     """
-    Switch to a layou where tables are visible and show the selected table
+    Switch to a layout where tables are visible and show the selected table
     """
     currentLayout = slicer.app.layoutManager().layout
     layoutWithTable = slicer.modules.tables.logic().GetLayoutWithTable(currentLayout)
@@ -766,11 +908,12 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     # Header
     csv = '"' + '","'.join(keys) + '"'
     # Rows
-    for segmentID in self.statistics["SegmentIDs"]:
-      csv += "\n" + str(self.statistics[segmentID,keys[0]])
+    statistics = self.getStatistics()
+    for segmentID in statistics["SegmentIDs"]:
+      csv += "\n" + str(statistics[segmentID,keys[0]])
       for key in keys[1:]:
-        if self.statistics.has_key((segmentID, key)):
-          csv += "," + str(self.statistics[segmentID,key])
+        if statistics.has_key((segmentID, key)):
+          csv += "," + str(statistics[segmentID,key])
         else:
           csv += ","
     return csv
@@ -797,6 +940,8 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
     """
     self.setUp()
     self.test_SegmentStatisticsBasic()
+
+    self.setUp()
     self.test_SegmentStatisticsCalculatorPlugins()
 
   def test_SegmentStatisticsBasic(self):
@@ -835,11 +980,13 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
     self.delayDisplay("Compute statistics")
 
     segStatLogic = SegmentStatisticsLogic()
-    segStatLogic.computeStatistics(segmentationNode, masterVolumeNode)
+    segStatLogic.getParameterNode().SetParameter("Segmentation", segmentationNode.GetID())
+    segStatLogic.getParameterNode().SetParameter("ScalarVolume", masterVolumeNode.GetID())
+    segStatLogic.computeStatistics()
 
     self.delayDisplay("Check a few numerical results")
-    self.assertEqual( segStatLogic.statistics["Test_2","LM voxel count"], 9807)
-    self.assertEqual( segStatLogic.statistics["Test_4","GS voxel count"], 380)
+    self.assertEqual( segStatLogic.getStatistics()["Test_2","Labelmap.voxel count"], 9807)
+    self.assertEqual( segStatLogic.getStatistics()["Test_4","Scalar Volume.voxel count"], 380)
 
     self.delayDisplay("Export results to table")
     resultsTableNode = slicer.vtkMRMLTableNode()
@@ -895,24 +1042,26 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
     # test calculating only measurements for selected segments
     self.delayDisplay("Test calculating only measurements for individual segments")
     segStatLogic = SegmentStatisticsLogic()
-    segStatLogic.updateStatisticsForSegment('Test_2',segmentationNode, masterVolumeNode)
+    segStatLogic.getParameterNode().SetParameter("Segmentation", segmentationNode.GetID())
+    segStatLogic.getParameterNode().SetParameter("ScalarVolume", masterVolumeNode.GetID())
+    segStatLogic.updateStatisticsForSegment('Test_2')
     resultsTableNode = slicer.vtkMRMLTableNode()
     slicer.mrmlScene.AddNode(resultsTableNode)
     segStatLogic.exportToTable(resultsTableNode)
     segStatLogic.showTable(resultsTableNode)
-    self.assertEqual( segStatLogic.statistics["Test_2","LM voxel count"], 9807)
-    with self.assertRaises(KeyError): segStatLogic.statistics["Test_4","GS voxel count"] # assert there are no result for this segment
-    segStatLogic.updateStatisticsForSegment('Test_4',segmentationNode, masterVolumeNode)
+    self.assertEqual( segStatLogic.getStatistics()["Test_2","Labelmap.voxel count"], 9807)
+    with self.assertRaises(KeyError): segStatLogic.getStatistics()["Test_4","Scalar Volume.voxel count"] # assert there are no result for this segment
+    segStatLogic.updateStatisticsForSegment('Test_4')
     segStatLogic.exportToTable(resultsTableNode)
     segStatLogic.showTable(resultsTableNode)
-    self.assertEqual( segStatLogic.statistics["Test_2","LM voxel count"], 9807)
-    self.assertEqual( segStatLogic.statistics["Test_4","GS voxel count"], 380)
-    with self.assertRaises(KeyError): segStatLogic.statistics["Test_5","GS voxel count"] # assert there are no result for this segment
+    self.assertEqual( segStatLogic.getStatistics()["Test_2","Labelmap.voxel count"], 9807)
+    self.assertEqual( segStatLogic.getStatistics()["Test_4","Labelmap.voxel count"], 380)
+    with self.assertRaises(KeyError): segStatLogic.getStatistics()["Test_5","Scalar Volume.voxel count"] # assert there are no result for this segment
 
     # calculate measurements for all segments
-    segStatLogic.computeStatistics(segmentationNode, masterVolumeNode)
-    self.assertEqual( segStatLogic.statistics["Test","LM voxel count"], 2948)
-    self.assertEqual( segStatLogic.statistics["Test_1","LM voxel count"], 23281)
+    segStatLogic.computeStatistics()
+    self.assertEqual( segStatLogic.getStatistics()["Test","Labelmap.voxel count"], 2948)
+    self.assertEqual( segStatLogic.getStatistics()["Test_1","Labelmap.voxel count"], 23281)
 
     # test updating measurements for segments one by one
     self.delayDisplay("Update some segments in the segmentation")
@@ -926,65 +1075,69 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
       segment = segmentationNode.GetSegmentation().GetNthSegment(i)
       segment.RemoveAllRepresentations()
       segment.AddRepresentation(vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationClosedSurfaceRepresentationName(), sphereSource.GetOutput())
-    self.assertEqual( segStatLogic.statistics["Test","LM voxel count"], 2948)
-    self.assertEqual( segStatLogic.statistics["Test_1","LM voxel count"], 23281)
-    segStatLogic.updateStatisticsForSegment('Test_1',segmentationNode, masterVolumeNode)
-    self.assertEqual( segStatLogic.statistics["Test","LM voxel count"], 2948)
-    self.assertTrue( segStatLogic.statistics["Test_1","LM voxel count"]!=23281)
-    segStatLogic.updateStatisticsForSegment('Test',segmentationNode, masterVolumeNode)
-    self.assertTrue( segStatLogic.statistics["Test","LM voxel count"]!=2948)
-    self.assertTrue( segStatLogic.statistics["Test_1","LM voxel count"]!=23281)
+    self.assertEqual( segStatLogic.getStatistics()["Test","Labelmap.voxel count"], 2948)
+    self.assertEqual( segStatLogic.getStatistics()["Test_1","Labelmap.voxel count"], 23281)
+    segStatLogic.updateStatisticsForSegment('Test_1')
+    self.assertEqual( segStatLogic.getStatistics()["Test","Labelmap.voxel count"], 2948)
+    self.assertTrue( segStatLogic.getStatistics()["Test_1","Labelmap.voxel count"]!=23281)
+    segStatLogic.updateStatisticsForSegment('Test')
+    self.assertTrue( segStatLogic.getStatistics()["Test","Labelmap.voxel count"]!=2948)
+    self.assertTrue( segStatLogic.getStatistics()["Test_1","Labelmap.voxel count"]!=23281)
 
     # test enabling/disabling of individual measurements
     self.delayDisplay("Test disabling of individual measurements")
     segStatLogic = SegmentStatisticsLogic()
-    segStatLogic.getParameterNode().SetParameter("LM voxel count.enabled",str(False))
-    segStatLogic.getParameterNode().SetParameter("LM volume cc.enabled",str(False))
-    segStatLogic.computeStatistics(segmentationNode, masterVolumeNode)
+    segStatLogic.getParameterNode().SetParameter("Segmentation", segmentationNode.GetID())
+    segStatLogic.getParameterNode().SetParameter("ScalarVolume", masterVolumeNode.GetID())
+    segStatLogic.getParameterNode().SetParameter("Labelmap.voxel count.enabled",str(False))
+    segStatLogic.getParameterNode().SetParameter("Labelmap.volume cc.enabled",str(False))
+    segStatLogic.computeStatistics()
     segStatLogic.exportToTable(resultsTableNode)
     segStatLogic.showTable(resultsTableNode)
     columnHeaders = [resultsTableNode.GetColumnName(i) for i in range(resultsTableNode.GetNumberOfColumns())]
-    self.assertFalse('LM voxel count' in columnHeaders)
-    self.assertTrue('LM volume mm3' in columnHeaders)
-    self.assertFalse('LM volume cc' in columnHeaders)
+    self.assertFalse('voxel count [LM]' in columnHeaders)
+    self.assertTrue('volume mm3 [LM]' in columnHeaders)
+    self.assertFalse('volume cc [LM]' in columnHeaders)
 
-    self.delayDisplay("Test re-disabling of individual measurements")
-    segStatLogic.getParameterNode().SetParameter("LM voxel count.enabled",str(True))
-    segStatLogic.getParameterNode().SetParameter("LM volume cc.enabled",str(True))
-    segStatLogic.computeStatistics(segmentationNode, masterVolumeNode)
+    self.delayDisplay("Test re-enabling of individual measurements")
+    segStatLogic.getParameterNode().SetParameter("Labelmap.voxel count.enabled",str(True))
+    segStatLogic.getParameterNode().SetParameter("Labelmap.volume cc.enabled",str(True))
+    segStatLogic.computeStatistics()
     segStatLogic.exportToTable(resultsTableNode)
     segStatLogic.showTable(resultsTableNode)
     columnHeaders = [resultsTableNode.GetColumnName(i) for i in range(resultsTableNode.GetNumberOfColumns())]
-    self.assertTrue('LM voxel count' in columnHeaders)
-    self.assertTrue('LM volume mm3' in columnHeaders)
-    self.assertTrue('LM volume cc' in columnHeaders)
+    self.assertTrue('voxel count [LM]' in columnHeaders)
+    self.assertTrue('volume mm3 [LM]' in columnHeaders)
+    self.assertTrue('volume cc [LM]' in columnHeaders)
 
     # test enabling/disabling of individual calculators
     self.delayDisplay("Test disabling of calculator")
-    segStatLogic.getParameterNode().SetParameter("Labelmap Statistics.enabled",str(False))
-    segStatLogic.computeStatistics(segmentationNode, masterVolumeNode)
+    segStatLogic.getParameterNode().SetParameter("Labelmap.enabled",str(False))
+    segStatLogic.computeStatistics()
     segStatLogic.exportToTable(resultsTableNode)
     segStatLogic.showTable(resultsTableNode)
     columnHeaders = [resultsTableNode.GetColumnName(i) for i in range(resultsTableNode.GetNumberOfColumns())]
-    self.assertFalse('LM  voxel count' in columnHeaders)
-    self.assertFalse('LM  volume mm3' in columnHeaders)
-    self.assertFalse('LM  volume cc' in columnHeaders)
+    self.assertFalse('voxel count [LM]' in columnHeaders)
+    self.assertFalse('volume mm3 [LM]' in columnHeaders)
+    self.assertFalse('volume cc [LM]' in columnHeaders)
 
     self.delayDisplay("Test re-enabling of calculator")
-    segStatLogic.getParameterNode().SetParameter("Labelmap Statistics.enabled",str(True))
-    segStatLogic.computeStatistics(segmentationNode, masterVolumeNode)
+    segStatLogic.getParameterNode().SetParameter("Labelmap.enabled",str(True))
+    segStatLogic.computeStatistics()
     segStatLogic.exportToTable(resultsTableNode)
     segStatLogic.showTable(resultsTableNode)
     columnHeaders = [resultsTableNode.GetColumnName(i) for i in range(resultsTableNode.GetNumberOfColumns())]
-    self.assertTrue('LM voxel count' in columnHeaders)
-    self.assertTrue('LM volume mm3' in columnHeaders)
-    self.assertTrue('LM volume cc' in columnHeaders)
+    self.assertTrue('voxel count [LM]' in columnHeaders)
+    self.assertTrue('volume mm3 [LM]' in columnHeaders)
+    self.assertTrue('volume cc [LM]' in columnHeaders)
 
     # test unregistering/registering of calculators
     self.delayDisplay("Test of removing all registered calculators")
     SegmentStatisticsLogic.registeredCalculators = [] # remove all registered calculators
     segStatLogic = SegmentStatisticsLogic()
-    segStatLogic.computeStatistics(segmentationNode, masterVolumeNode)
+    segStatLogic.getParameterNode().SetParameter("Segmentation", segmentationNode.GetID())
+    segStatLogic.getParameterNode().SetParameter("ScalarVolume", masterVolumeNode.GetID())
+    segStatLogic.computeStatistics()
     segStatLogic.exportToTable(resultsTableNode)
     segStatLogic.showTable(resultsTableNode)
     columnHeaders = [resultsTableNode.GetColumnName(i) for i in range(resultsTableNode.GetNumberOfColumns())]
@@ -992,17 +1145,19 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
     self.assertEqual(columnHeaders[0],"Segment") # only header element should be "Segment"
 
     self.delayDisplay("Test registering calculators")
-    SegmentStatisticsLogic.registerCalculator(SegmentLabelmapStatisticsCalculator())
-    SegmentStatisticsLogic.registerCalculator(SegmentGrayscaleVolumeStatisticsCalculator())
-    SegmentStatisticsLogic.registerCalculator(SegmentClosedSurfaceStatisticsCalculator())
+    SegmentStatisticsLogic.registerCalculator(LabelmapSegmentStatisticsCalculator())
+    SegmentStatisticsLogic.registerCalculator(ScalarVolumeSegmentStatisticsCalculator())
+    SegmentStatisticsLogic.registerCalculator(ClosedSurfaceSegmentStatisticsCalculator())
     segStatLogic = SegmentStatisticsLogic()
-    segStatLogic.computeStatistics(segmentationNode, masterVolumeNode)
+    segStatLogic.getParameterNode().SetParameter("Segmentation", segmentationNode.GetID())
+    segStatLogic.getParameterNode().SetParameter("ScalarVolume", masterVolumeNode.GetID())
+    segStatLogic.computeStatistics()
     segStatLogic.exportToTable(resultsTableNode)
     segStatLogic.showTable(resultsTableNode)
     columnHeaders = [resultsTableNode.GetColumnName(i) for i in range(resultsTableNode.GetNumberOfColumns())]
-    self.assertTrue('LM voxel count' in columnHeaders)
-    self.assertTrue('GS voxel count' in columnHeaders)
-    self.assertTrue('CS surface mm2' in columnHeaders)
+    self.assertTrue('voxel count [LM]' in columnHeaders)
+    self.assertTrue('voxel count [SV]' in columnHeaders)
+    self.assertTrue('surface mm2 [CS]' in columnHeaders)
 
     self.delayDisplay('test_SegmentStatisticsCalculatorPlugins passed!')
 
