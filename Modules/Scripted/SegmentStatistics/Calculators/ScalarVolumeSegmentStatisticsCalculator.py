@@ -1,9 +1,6 @@
-import os
-import unittest
-import vtk, qt, ctk, slicer
-import logging
-from sets import Set
+import vtk, slicer
 from SegmentStatisticsCalculators import SegmentStatisticsCalculatorBase
+
 
 class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
   """Statistical calculator for segmentations with scalar volumes"""

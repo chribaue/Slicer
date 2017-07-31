@@ -1,9 +1,7 @@
-import os
-import unittest
-import vtk, qt, ctk, slicer
-import logging
-from sets import Set
+import vtk
+import slicer
 from SegmentStatisticsCalculators import SegmentStatisticsCalculatorBase
+
 
 class LabelmapSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
   """Statistical calculator for Labelmaps"""
