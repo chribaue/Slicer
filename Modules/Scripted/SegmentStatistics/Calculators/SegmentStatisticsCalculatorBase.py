@@ -1,8 +1,6 @@
-import os
-import unittest
-import vtk, qt, ctk, slicer
-import logging
-from sets import Set
+import vtk
+import qt
+
 
 class SegmentStatisticsCalculatorBase(object):
   """Base class for statistics calculators operating on segments.
@@ -11,7 +9,7 @@ class SegmentStatisticsCalculatorBase(object):
   """
   def __init__(self):
     self.name = "" # name of the statistics calculator
-    self.id = "" # short unique identifier for calculator to distinuish between similar measurements by different calculators
+    self.id = "" # short unique identifier for calculator to distinguish between similar measurements by different calculators
     self.keys = () # keys for all supported measurements; should have format "CalculatorName.measurement"; e.g. "Labelmap.volume cc"
     self.defaultKeys = () # measurements that will be enabled by default
     self.optionsWidget = qt.QWidget()
@@ -41,7 +39,7 @@ class SegmentStatisticsCalculatorBase(object):
     return {"name": key, "description": key, "units": None}
 
   def getDICOMTriplet(self, codeValue, codingSchemeDesignator, codeMeaning):
-    """Utillity method to form DICOM triplets in getMeasurementInfo"""
+    """Utility method to form DICOM triplets in getMeasurementInfo"""
     return {'CodeValue':codeValue,
             'CodingSchemeDesignator': codingSchemeDesignator,
             'CodeMeaning': codeMeaning}
