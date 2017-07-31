@@ -495,11 +495,21 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     keys = self.getNonEmptyKeys() if nonEmptyKeysOnly else self.keys
 
     # Count number of calculators that produced measurements
-    calculatorsWithResults = set([self.getCalculatorByKey(k) for k in keys if k is not None])
+    calculatorsWithResults = set([self.getCalculatorByKey(k) for k in keys if k is not 'Segment'])
 
     # Define table columns
+    statistics = self.getStatistics()
     for key in keys:
-      col = table.AddColumn() if key=='Segment' else table.AddColumn(vtk.vtkDoubleArray())
+      # create table column appropriate for data type; currently supported: float, int, long, string   
+      measurements = [statistics[segmentID, key] for segmentID in statistics["SegmentIDs"] if statistics.has_key((segmentID, key))]
+      if len(measurements)==0: # there were not measurements and therefore use the default "string" representation
+        col = table.AddColumn()
+      elif type(measurements[0]) in [int, long]:
+        col = table.AddColumn(vtk.vtkLongArray())
+      elif type(measurements[0]) is float:
+        col = table.AddColumn(vtk.vtkDoubleArray())
+      else: # default
+        col = table.AddColumn()
       calculator = self.getCalculatorByKey(key)
       measurementInfo = self.getMeasurementInfo(key)
       columnName =  measurementInfo['name'] if measurementInfo and 'name' in measurementInfo else key
@@ -517,7 +527,6 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
             table.SetColumnProperty(columnName, str(mik), str(miv))
 
     # Fill columns
-    statistics = self.getStatistics()
     for segmentID in statistics["SegmentIDs"]:
       rowIndex = table.AddEmptyRow()
       columnIndex = 0

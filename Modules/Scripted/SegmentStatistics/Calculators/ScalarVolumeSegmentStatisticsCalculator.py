@@ -103,10 +103,10 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     info = {}
     info["Scalar Volume.voxel_count"] = {"name": "voxel count", "description": "number of voxels", "units": None}
     info["Scalar Volume.volume_mm3"] = {"name": "volume mm3", "description": "volume in mm3", "units": "mm3"}
-    info["Scalar Volume.volume_cc"] = {"name": "volume cc", "description": "volume in cc", "units": "cc"}
-    info["Scalar Volume.min"] = {"name": "minimum", "description": "minimum scalar value", "units": None}
-    info["Scalar Volume.max"] = {"name": "maximum", "description": "maximum scalar value", "units": None}
-    info["Scalar Volume.mean"] = {"name": "mean", "description": "mean scalar value", "units": None}
-    info["Scalar Volume.stdev"] = {"name": "standard deviation", "description": "standard deviation of scalar values", "units": None}
+    info["Scalar Volume.volume_cc"] = {"name": "volume cc", "description": "volume in cc", "units": "cc", 'DICOM.QuantityCode': self.getDICOMTriplet('G-D705','SRT','Volume'), 'DICOM.MeasurementMethodCode': self.getDICOMTriplet('126030','DCM','Sum of segmented voxel volumes'), 'DICOM.UnitsCode': self.getDICOMTriplet('ml','UCUM','Milliliter')}
+    info["Scalar Volume.min"] = {"name": "minimum", "description": "minimum scalar value", "units": None, 'DICOM.DerivationCode': self.getDICOMTriplet('R-404FB','SRT','Minimum')}
+    info["Scalar Volume.max"] = {"name": "maximum", "description": "maximum scalar value", "units": None, 'DICOM.DerivationCode': self.getDICOMTriplet('G-A437','SRT','Maximum')}
+    info["Scalar Volume.mean"] = {"name": "mean", "description": "mean scalar value", "units": None, 'DICOM.DerivationCode': self.getDICOMTriplet('R-00317','SRT','Mean')}
+    info["Scalar Volume.stdev"] = {"name": "standard deviation", "description": "standard deviation of scalar values", "units": None, 'DICOM.DerivationCode': self.getDICOMTriplet('R-10047','SRT','Standard Deviation')}
     return info[key] if key in info else None
 

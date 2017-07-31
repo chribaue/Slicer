@@ -52,6 +52,6 @@ class ClosedSurfaceSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     info = {}
     info["Closed Surface.surface_mm2"] = {"name": "surface mm2", "description": "surface area in mm2", "units": "mm2"}
     info["Closed Surface.volume_mm3"] = {"name": "volume mm3", "description": "volume in mm3", "units": "mm3"}
-    info["Closed Surface.volume_cc"] = {"name": "volume cc", "description": "volume in cc", "units": "cc"}
+    info["Closed Surface.volume_cc"] = {"name": "volume cc", "description": "volume in cc", "units": "cc", 'DICOM.QuantityCode': self.getDICOMTriplet('G-D705','SRT','Volume'), 'DICOM.UnitsCode': self.getDICOMTriplet('ml','UCUM','Milliliter')}
     return info[key] if key in info else None
 
