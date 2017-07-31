@@ -1,9 +1,6 @@
-import os
-import unittest
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
-from sets import Set
 from SegmentStatisticsCalculators import *
 
 #
@@ -16,7 +13,6 @@ class SegmentStatistics(ScriptedLoadableModule):
   """
 
   def __init__(self, parent):
-    import string
     ScriptedLoadableModule.__init__(self, parent)
     self.parent.title = "Segment Statistics"
     self.parent.categories = ["Quantification"]
@@ -25,7 +21,7 @@ class SegmentStatistics(ScriptedLoadableModule):
     self.parent.helpText = """
 Use this module to calculate counts and volumes for segments plus statistics on the grayscale background volume.
 Computed fields:
-Segment labelmap stastistics (LM): voxel count, volume mm3, volume cc.
+Segment labelmap statistics (LM): voxel count, volume mm3, volume cc.
 Requires segment labelmap representation.
 Scalar volume statistics (SV): voxel count, volume mm3, volume cc (where segments overlap scalar volume),
 min, max, mean, stdev (intensity statistics).
@@ -37,7 +33,6 @@ Requires segment closed surface representation.
     self.parent.acknowledgementText = """
 Supported by NA-MIC, NAC, BIRN, NCIGT, and the Slicer Community. See http://www.slicer.org for details.
 """
-
   def setup(self):
     # Register subject hierarchy plugin
     import SubjectHierarchyPlugins
@@ -172,9 +167,9 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
       self.parameterNode.RemoveObserver(self.parameterNodeObserver)
 
   def onNodeSelectionChanged(self):
-    self.applyButton.enabled = ( (self.segmentationSelector.currentNode() is not None) and
-                                 (self.outputTableSelector.currentNode() is not None) and
-                                 (self.parameterNodeSelector.currentNode() is not None) )
+    self.applyButton.enabled = (self.segmentationSelector.currentNode() is not None and
+                                self.outputTableSelector.currentNode() is not None and
+                                self.parameterNodeSelector.currentNode() is not None)
     if self.segmentationSelector.currentNode():
       self.outputTableSelector.baseName = self.segmentationSelector.currentNode().GetName() + ' statistics'
 
@@ -202,28 +197,28 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
     self.logic.showTable(self.outputTableSelector.currentNode())
 
   def onEditParameters(self, calculatorName=None):
-      """Open dialog box to edit calculator's parameters"""
-      if self.parameterNodeSelector.currentNode():
-        SegmentStatisticsParameterEditorDialog.editParameters(self.parameterNodeSelector.currentNode(),calculatorName)
+    """Open dialog box to edit calculator's parameters"""
+    if self.parameterNodeSelector.currentNode():
+      SegmentStatisticsParameterEditorDialog.editParameters(self.parameterNodeSelector.currentNode(),calculatorName)
 
   def addCalculatorOptionWidgets(self):
     self.calculatorEnabledCheckboxes = {}
     self.parametersLayout.addRow(qt.QLabel("Enabled segment statistics calculators:"))
     for calculator in self.logic.calculators:
-        checkbox = qt.QCheckBox(calculator.name+" Statistics")
-        checkbox.checked = True
-        checkbox.connect('stateChanged(int)', self.updateParameterNodeFromGui)
-        optionButton = qt.QPushButton("Options")
-        from functools import partial
-        optionButton.connect('clicked()',partial(self.onEditParameters, calculator.name))
-        editWidget = qt.QWidget()
-        editWidget.setLayout(qt.QHBoxLayout())
-        editWidget.layout().margin = 0
-        editWidget.layout().addWidget(checkbox, 0)
-        editWidget.layout().addStretch(1)
-        editWidget.layout().addWidget(optionButton, 0)
-        self.calculatorEnabledCheckboxes[calculator.name] = checkbox
-        self.parametersLayout.addRow(editWidget)
+      checkbox = qt.QCheckBox(calculator.name+" Statistics")
+      checkbox.checked = True
+      checkbox.connect('stateChanged(int)', self.updateParameterNodeFromGui)
+      optionButton = qt.QPushButton("Options")
+      from functools import partial
+      optionButton.connect('clicked()',partial(self.onEditParameters, calculator.name))
+      editWidget = qt.QWidget()
+      editWidget.setLayout(qt.QHBoxLayout())
+      editWidget.layout().margin = 0
+      editWidget.layout().addWidget(checkbox, 0)
+      editWidget.layout().addStretch(1)
+      editWidget.layout().addWidget(optionButton, 0)
+      self.calculatorEnabledCheckboxes[calculator.name] = checkbox
+      self.parametersLayout.addRow(editWidget)
     # embed widgets for editing calculators' parameters
     #for calculator in self.logic.calculators:
     #  calculatorOptionsCollapsibleButton = ctk.ctkCollapsibleGroupBox()
@@ -244,21 +239,21 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
     if not self.parameterNode:
       return
     for calculator in self.logic.calculators:
-        parameter = calculator.name+'.enabled'
-        checkbox = self.calculatorEnabledCheckboxes[calculator.name]
-        value = self.parameterNode.GetParameter(parameter)=='True'
-        if checkbox.checked!=value:
-          checkbox.blockSignals(True)
-          checkbox.checked = value
-          checkbox.blockSignals(False)
+      parameter = calculator.name+'.enabled'
+      checkbox = self.calculatorEnabledCheckboxes[calculator.name]
+      value = self.parameterNode.GetParameter(parameter)=='True'
+      if checkbox.checked!=value:
+        checkbox.blockSignals(True)
+        checkbox.checked = value
+        checkbox.blockSignals(False)
 
   def updateParameterNodeFromGui(self):
     if not self.parameterNode:
       return
     for calculator in self.logic.calculators:
-        parameter = calculator.name+'.enabled'
-        checkbox = self.calculatorEnabledCheckboxes[calculator.name]
-        self.parameterNode.SetParameter(parameter, str(checkbox.checked))
+      parameter = calculator.name+'.enabled'
+      checkbox = self.calculatorEnabledCheckboxes[calculator.name]
+      self.parameterNode.SetParameter(parameter, str(checkbox.checked))
 
 class SegmentStatisticsParameterEditorDialog(qt.QDialog):
     """Dialog to edit parameters of segment statistics calculators.
@@ -267,7 +262,8 @@ class SegmentStatisticsParameterEditorDialog(qt.QDialog):
 
     @staticmethod
     def editParameters(parameterNode, calculatorName=None):
-      """Excutes a modal dialog to edit a segment statstics parameter node      If a calculatorName is specified, only options for this calculator are displayed"
+      """Executes a modal dialog to edit a segment statistics parameter node if a calculatorName is specified, only
+      options for this calculator are displayed"
       """
       dialog = SegmentStatisticsParameterEditorDialog(parent=None, parameterNode=parameterNode, calculatorName=calculatorName)
       return dialog.exec_()
@@ -338,7 +334,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
   """Implement the logic to calculate label statistics.
   Nodes are passed in as arguments.
   Results are stored as 'statistics' instance variable.
-  Additional 'Calculators' for computation of other statistical measuements may be registered.
+  Additional 'Calculators' for computation of other statistical measurements may be registered.
   Uses ScriptedLoadableModuleLogic base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
@@ -350,10 +346,10 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     if not isinstance(calculator, SegmentStatisticsCalculatorBase):
       return
     if calculator.name.find(".")>0:
-      logging.warning("Calculator name should not contain '.' as it might mix calculatorname.measruementkey in the parameter node")
+      logging.warning("Calculator name should not contain '.' as it might mix calculatorname.measurementkey in the parameter node")
     for key in calculator.keys:
       if key.count(".")>1:
-        logging.warning("Calculator keys should not contain extra '.' as it might mix calculatorname.measruementkey in the parameter node")
+        logging.warning("Calculator keys should not contain extra '.' as it might mix calculatorname.measurementkey in the parameter node")
     if not calculator.__class__ in SegmentStatisticsLogic.registeredCalculators and \
        not calculator.id in [c().id for c in SegmentStatisticsLogic.registeredCalculators]:
       SegmentStatisticsLogic.registeredCalculators.append(calculator.__class__)
@@ -373,13 +369,13 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     self.reset()
 
   def getParameterNode(self):
-    """Returns the current paramter node and creates one if it doesn't exist yet"""
+    """Returns the current parameter node and creates one if it doesn't exist yet"""
     if not self.parameterNode:
       self.setParameterNode( ScriptedLoadableModuleLogic.getParameterNode(self) )
     return self.parameterNode
 
   def setParameterNode(self, parameterNode):
-    """Set the current paramter node and initialize all unset paramters to their default values"""
+    """Set the current parameter node and initialize all unset parameters to their default values"""
     if self.parameterNode==parameterNode:
       return
     self.setDefaultParameters(parameterNode)
@@ -398,8 +394,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     """Get the calculated statistical measurements"""
     params = self.getParameterNode()
     if not hasattr(params,'statistics'):
-      params.statistics = {}
-      params.statistics["SegmentIDs"] = []
+      params.statistics = {"SegmentIDs": []}
     return params.statistics
 
   def reset(self):
@@ -408,13 +403,10 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     for calculator in self.calculators:
       self.keys += calculator.keys
     params = self.getParameterNode()
-    params.statistics = {}
-    params.statistics["SegmentIDs"] = []
+    params.statistics = {"SegmentIDs":[]}
 
   def computeStatistics(self):
-    """Compute statistical measures for all (visibile) segments"""
-    import vtkSegmentationCorePython as vtkSegmentationCore
-
+    """Compute statistical measures for all (visible) segments"""
     self.reset()
 
     segmentationNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("Segmentation"))
@@ -503,8 +495,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     keys = self.getNonEmptyKeys() if nonEmptyKeysOnly else self.keys
 
     # Count number of calculators that produced measurements
-    calculatorsWithResults = Set([self.getCalculatorByKey(k) for k in keys])
-    calculatorsWithResults.remove(None)
+    calculatorsWithResults = set([self.getCalculatorByKey(k) for k in keys if k is not None])
 
     # Define table columns
     for key in keys:
@@ -532,7 +523,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
       columnIndex = 0
       for key in keys:
         value = statistics[segmentID, key] if statistics.has_key((segmentID, key)) else None
-        if value==None and key!='Segment':
+        if value is None and key!='Segment':
           value = float('nan')
         table.GetTable().GetColumn(columnIndex).SetValue(rowIndex, value)
         columnIndex += 1
@@ -573,6 +564,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     fp.write(self.exportToString(nonEmptyKeysOnly))
     fp.close()
 
+
 class SegmentStatisticsTest(ScriptedLoadableModuleTest):
   """
   This is the test case for your scripted module.
@@ -601,8 +593,6 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
 
     self.delayDisplay("Starting test_SegmentStatisticsBasic")
 
-    import vtkSegmentationCorePython as vtkSegmentationCore
-    import vtkSlicerSegmentationsModuleLogicPython as vtkSlicerSegmentationsModuleLogic
     import SampleData
     from SegmentStatistics import SegmentStatisticsLogic
 
@@ -661,7 +651,6 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
     self.delayDisplay("Starting test_SegmentStatisticsCalculatorPlugins")
 
     import vtkSegmentationCorePython as vtkSegmentationCore
-    import vtkSlicerSegmentationsModuleLogicPython as vtkSlicerSegmentationsModuleLogic
     import SampleData
     from SegmentStatistics import SegmentStatisticsLogic
 
@@ -811,13 +800,14 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
 
     self.delayDisplay('test_SegmentStatisticsCalculatorPlugins passed!')
 
+
 class Slicelet(object):
   """A slicer slicelet is a module widget that comes up in stand alone mode
   implemented as a python class.
   This class provides common wrapper functionality used by all slicer modlets.
   """
   # TODO: put this in a SliceletLib
-  # TODO: parse command line arge
+  # TODO: parse command line args
 
   def __init__(self, widgetClass=None):
     self.parent = qt.QFrame()
@@ -839,12 +829,14 @@ class Slicelet(object):
       self.widget.setup()
     self.parent.show()
 
+
 class SegmentStatisticsSlicelet(Slicelet):
   """ Creates the interface when module is run as a stand alone gui app.
   """
 
   def __init__(self):
     super(SegmentStatisticsSlicelet,self).__init__(SegmentStatisticsWidget)
+
 
 #
 # Class for avoiding python error that is caused by the method SegmentStatistics::setup
