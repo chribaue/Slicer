@@ -602,6 +602,7 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
 
     self.delayDisplay("Starting test_SegmentStatisticsBasic")
 
+    import vtkSegmentationCorePython as vtkSegmentationCore
     import SampleData
     from SegmentStatistics import SegmentStatisticsLogic
 
