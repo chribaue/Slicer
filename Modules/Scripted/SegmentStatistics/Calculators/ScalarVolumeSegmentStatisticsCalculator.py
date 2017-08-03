@@ -99,14 +99,76 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     return stats
 
   def getMeasurementInfo(self, key):
+
+    scalarVolumeNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("ScalarVolume"))
+
+    scalarVolumeQuantity = scalarVolumeNode.GetVoxelValueQuantity()
+    scalarVolumeUnits = scalarVolumeNode.GetVoxelValueUnits()
+
+    noUnits = initCodedEntry("1", "UCUM", "no units")
+
     """Get information (name, description, units, ...) about the measurement for the given key"""
     info = {}
-    info["Scalar Volume.voxel_count"] = {"name": "voxel count", "description": "number of voxels", "units": None}
-    info["Scalar Volume.volume_mm3"] = {"name": "volume mm3", "description": "volume in mm3", "units": "mm3"}
-    info["Scalar Volume.volume_cc"] = {"name": "volume cc", "description": "volume in cc", "units": "cc", 'DICOM.QuantityCode': self.getDICOMTriplet('G-D705','SRT','Volume'), 'DICOM.MeasurementMethodCode': self.getDICOMTriplet('126030','DCM','Sum of segmented voxel volumes'), 'DICOM.UnitsCode': self.getDICOMTriplet('ml','UCUM','Milliliter')}
-    info["Scalar Volume.min"] = {"name": "minimum", "description": "minimum scalar value", "units": None, 'DICOM.DerivationCode': self.getDICOMTriplet('R-404FB','SRT','Minimum')}
-    info["Scalar Volume.max"] = {"name": "maximum", "description": "maximum scalar value", "units": None, 'DICOM.DerivationCode': self.getDICOMTriplet('G-A437','SRT','Maximum')}
-    info["Scalar Volume.mean"] = {"name": "mean", "description": "mean scalar value", "units": None, 'DICOM.DerivationCode': self.getDICOMTriplet('R-00317','SRT','Mean')}
-    info["Scalar Volume.stdev"] = {"name": "standard deviation", "description": "standard deviation of scalar values", "units": None, 'DICOM.DerivationCode': self.getDICOMTriplet('R-10047','SRT','Standard Deviation')}
-    return info[key] if key in info else None
+    info["Scalar Volume.voxel_count"] = { \
+      "name": "voxel count", \
+      "description": "number of voxels", \
+      "units": None, \
+      'DICOM.QuantityCode': initCodedEntry("nvoxels", "99QIICR", "Number of voxels"),\
+      'DICOM.UnitsCode': initCodedEntry("\{voxels\}", "UCUM", "voxels") \
+      }
 
+    info["Scalar Volume.volume_mm3"] = { \
+      "name": "volume mm3", \
+      "description": "volume in mm3", \
+      "units": "mm3", \
+      'DICOM.QuantityCode': initCodedEntry("G-D705", "SRT", "Volume"),\
+      'DICOM.UnitsCode': initCodedEntry("mm3", "UCUM", "cubic millimeter") \
+    }
+
+    info["Scalar Volume.volume_cc"] = { \
+      "name": "volume cc", \
+      "description": "volume in cc", \
+      "units": "cc", \
+      "DICOM.QuantityCode": initCodedEntry("G-D705","SRT", "Volume").GetAsString(), \
+      "DICOM.MeasurementMethodCode": initCodedEntry("126030", "DCM", "Sum of segmented voxel volumes"), \
+      "DICOM.UnitsCode": initCodedEntry("ml","UCUM","milliliter").GetAsString() \
+    }
+
+    info["Scalar Volume.min"] = { \
+      "name": "minimum", \
+      "description": "minimum scalar value", \
+      "units": None, \
+      "DICOM.DerivationCode": \
+      initCodedEntry("R-404FB","SRT","Minimum").GetAsString(), \
+      "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
+      "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
+    }
+
+    info["Scalar Volume.max"] = { \
+      "name": "maximum", \
+      "description": "maximum scalar value", \
+      "units": None, \
+      "DICOM.DerivationCode": initCodedEntry("G-A437","SRT","Maximum").GetAsString() \
+      "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
+      "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
+    }
+
+    info["Scalar Volume.mean"] = { \
+      "name": "mean", \
+      "description": "mean scalar value", \
+      "units": None, \
+      "DICOM.DerivationCode": initCodedEntry("R-00317","SRT","Mean").GetAsString() \
+      "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
+      "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
+    }
+
+    info["Scalar Volume.stdev"] = { \
+      "name": "standard deviation", \
+      "description": "standard deviation of scalar values", \
+      "units": None, \
+      'DICOM.DerivationCode': self.getDICOMTriplet('R-10047','SRT','Standard Deviation'), \
+      "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
+      "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
+    }
+
+    return info[key] if key in info else None

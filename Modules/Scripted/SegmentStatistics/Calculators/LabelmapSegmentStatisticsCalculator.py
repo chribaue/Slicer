@@ -69,8 +69,34 @@ class LabelmapSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
   def getMeasurementInfo(self, key):
     """Get information (name, description, units, ...) about the measurement for the given key"""
     info = {}
-    info["Labelmap.voxel_count"] = {"name": "voxel count", "description": "number of voxels", "units": None}
-    info["Labelmap.volume_mm3"] = {"name": "volume mm3", "description": "volume in mm3", "units": "mm3"}
-    info["Labelmap.volume_cc"] =  {"name": "volume cc", "description": "volume in cc", "units": "cc", 'DICOM.QuantityCode': self.getDICOMTriplet('G-D705','SRT','Volume'), 'DICOM.MeasurementMethodCode': self.getDICOMTriplet('126030','DCM','Sum of segmented voxel volumes'), 'DICOM.UnitsCode': self.getDICOMTriplet('ml','UCUM','Milliliter')}
-    return info[key] if key in info else None
 
+    # @fedorov could not find any suitable code.
+    # DCM has "Number of needles" etc., so probably "Number of voxels"
+    # should be added too. Need to discuss with @dclunie. For now, a
+    # QIICR private scheme placeholder.
+    info["Labelmap.voxel_count"] = { \
+      "name": "voxel count", \
+      "description": "number of voxels", \
+      "units": None, \
+      'DICOM.QuantityCode': initCodedEntry("nvoxels", "99QIICR", "Number of voxels"),\
+      'DICOM.UnitsCode': initCodedEntry("\{voxels\}", "UCUM", "voxels") \
+      }
+
+    info["Labelmap.volume_mm3"] = {\
+      "name": "volume mm3", \
+      "description": "volume in mm3", \
+      "units": "mm3", \
+      'DICOM.QuantityCode': initCodedEntry("G-D705", "SRT", "Volume"),\
+      'DICOM.UnitsCode': initCodedEntry("mm3", "UCUM", "cubic millimeter") \
+    }
+
+    info["Labelmap.volume_cc"] = { \
+      "name": "volume cc", \
+      "description": "volume in cc", \
+      "units": "cc", \
+      "DICOM.QuantityCode": initCodedEntry("G-D705","SRT", "Volume").GetAsString(), \
+      "DICOM.MeasurementMethodCode": initCodedEntry("126030", "DCM", "Sum of segmented voxel volumes"), \
+      "DICOM.UnitsCode": initCodedEntry("ml","UCUM","milliliter").GetAsString() \
+    }
+
+    return info[key] if key in info else None

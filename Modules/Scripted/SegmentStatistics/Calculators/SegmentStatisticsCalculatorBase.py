@@ -1,6 +1,10 @@
 import vtk
 import qt
 
+def initCodedEntry(codeValue, codingScheme, codeMeaning):
+  entry = slicer.vtk.CodedEntry()
+  entry.SetSchemeValueMeaning(codingScheme, codeValue, codeMeaning)
+  return entry
 
 class SegmentStatisticsCalculatorBase(object):
   """Base class for statistics calculators operating on segments.
@@ -173,4 +177,3 @@ class SegmentStatisticsCalculatorBase(object):
     if not self.parameterNode:
       return
     self.setDefaultParameters(self.parameterNode,overwriteExisting=True)
-
