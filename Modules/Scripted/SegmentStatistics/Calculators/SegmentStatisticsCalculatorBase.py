@@ -2,7 +2,7 @@ import vtk
 import qt
 
 def initCodedEntry(codeValue, codingScheme, codeMeaning):
-  entry = slicer.vtk.CodedEntry()
+  entry = slicer.vtkCodedEntry()
   entry.SetSchemeValueMeaning(codingScheme, codeValue, codeMeaning)
   return entry
 

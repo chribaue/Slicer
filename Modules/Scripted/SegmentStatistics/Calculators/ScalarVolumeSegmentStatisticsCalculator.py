@@ -112,7 +112,7 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     info["Scalar Volume.voxel_count"] = { \
       "name": "voxel count", \
       "description": "number of voxels", \
-      "units": None, \
+      "units": "voxels", \
       'DICOM.QuantityCode': initCodedEntry("nvoxels", "99QIICR", "Number of voxels"),\
       'DICOM.UnitsCode': initCodedEntry("\{voxels\}", "UCUM", "voxels") \
       }
@@ -131,13 +131,13 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
       "units": "cc", \
       "DICOM.QuantityCode": initCodedEntry("G-D705","SRT", "Volume").GetAsString(), \
       "DICOM.MeasurementMethodCode": initCodedEntry("126030", "DCM", "Sum of segmented voxel volumes"), \
-      "DICOM.UnitsCode": initCodedEntry("ml","UCUM","milliliter").GetAsString() \
+      "DICOM.UnitsCode": initCodedEntry("cm3","UCUM","cubic centimeter").GetAsString() \
     }
 
     info["Scalar Volume.min"] = { \
       "name": "minimum", \
       "description": "minimum scalar value", \
-      "units": None, \
+      "units": scalarVolumeUnits.GetCodeMeaning(), \
       "DICOM.DerivationCode": \
       initCodedEntry("R-404FB","SRT","Minimum").GetAsString(), \
       "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
@@ -147,7 +147,7 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     info["Scalar Volume.max"] = { \
       "name": "maximum", \
       "description": "maximum scalar value", \
-      "units": None, \
+      "units": scalarVolumeUnits.GetCodeMeaning(), \
       "DICOM.DerivationCode": initCodedEntry("G-A437","SRT","Maximum").GetAsString() \
       "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
       "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
@@ -156,7 +156,7 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     info["Scalar Volume.mean"] = { \
       "name": "mean", \
       "description": "mean scalar value", \
-      "units": None, \
+      "units": scalarVolumeUnits.GetCodeMeaning(), \
       "DICOM.DerivationCode": initCodedEntry("R-00317","SRT","Mean").GetAsString() \
       "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
       "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
@@ -165,7 +165,7 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     info["Scalar Volume.stdev"] = { \
       "name": "standard deviation", \
       "description": "standard deviation of scalar values", \
-      "units": None, \
+      "units": scalarVolumeUnits.GetCodeMeaning(), \
       'DICOM.DerivationCode': self.getDICOMTriplet('R-10047','SRT','Standard Deviation'), \
       "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
       "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
