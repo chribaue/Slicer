@@ -50,8 +50,33 @@ class ClosedSurfaceSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
   def getMeasurementInfo(self, key):
     """Get information (name, description, units, ...) about the measurement for the given key"""
     info = {}
-    info["Closed Surface.surface_mm2"] = {"name": "surface mm2", "description": "surface area in mm2", "units": "mm2"}
-    info["Closed Surface.volume_mm3"] = {"name": "volume mm3", "description": "volume in mm3", "units": "mm3"}
-    info["Closed Surface.volume_cc"] = {"name": "volume cc", "description": "volume in cc", "units": "cc", 'DICOM.QuantityCode': self.getDICOMTriplet('G-D705','SRT','Volume'), 'DICOM.UnitsCode': self.getDICOMTriplet('ml','UCUM','Milliliter')}
-    return info[key] if key in info else None
 
+    # I searched BioPortal, and found seemingly most suitable code.
+    # Prefixed with "99" since CHEMINF is not a recognized DICOM coding scheme.
+    # See https://bioportal.bioontology.org/ontologies/CHEMINF?p=classes&conceptid=http%3A%2F%2Fsemanticscience.org%2Fresource%2FCHEMINF_000247
+    #
+    info["Closed Surface.surface_mm2"] = { \
+      "name": "surface mm2", \
+      "description": "surface area in mm2", \
+      "units": "mm2", \
+      'DICOM.QuantityCode': initCodedEntry("000247", "99CHEMINF", "surface area"),\
+      'DICOM.UnitsCode': initCodedEntry("mm2", "UCUM", "squared millimeters") \
+      }
+
+    info["Closed Surface.volume_mm3"] = {\
+      "name": "volume mm3", \
+      "description": "volume in mm3", \
+      "units": "mm3", \
+      'DICOM.QuantityCode': initCodedEntry("G-D705", "SRT", "Volume"),\
+      'DICOM.UnitsCode': initCodedEntry("mm3", "UCUM", "cubic millimeter") \
+    }
+
+    info["Closed Surface.volume_cc3"] = {\
+      "name": "volume mm3", \
+      "description": "volume in cc3", \
+      "units": "mm3", \
+      'DICOM.QuantityCode': initCodedEntry("G-D705", "SRT", "Volume"),\
+      'DICOM.UnitsCode': initCodedEntry("cc3", "UCUM", "cubic centimeter") \
+    }
+
+    return info[key] if key in info else None
