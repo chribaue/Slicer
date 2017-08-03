@@ -71,12 +71,12 @@ class ClosedSurfaceSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
       'DICOM.UnitsCode': initCodedEntry("mm3", "UCUM", "cubic millimeter") \
     }
 
-    info["Closed Surface.volume_cc3"] = {\
-      "name": "volume mm3", \
-      "description": "volume in cc3", \
-      "units": "mm3", \
+    info["Closed Surface.volume_cc"] = {\
+      "name": "volume cc", \
+      "description": "volume in cc", \
+      "units": "cc", \
       'DICOM.QuantityCode': initCodedEntry("G-D705", "SRT", "Volume"),\
-      'DICOM.UnitsCode': initCodedEntry("cc3", "UCUM", "cubic centimeter") \
+      'DICOM.UnitsCode': initCodedEntry("cm3", "UCUM", "cubic centimeter") \
     }
 
     return info[key] if key in info else None

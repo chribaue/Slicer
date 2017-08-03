@@ -77,7 +77,7 @@ class LabelmapSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     info["Labelmap.voxel_count"] = { \
       "name": "voxel count", \
       "description": "number of voxels", \
-      "units": None, \
+      "units": "voxels", \
       'DICOM.QuantityCode': initCodedEntry("nvoxels", "99QIICR", "Number of voxels"),\
       'DICOM.UnitsCode': initCodedEntry("\{voxels\}", "UCUM", "voxels") \
       }
@@ -96,7 +96,7 @@ class LabelmapSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
       "units": "cc", \
       "DICOM.QuantityCode": initCodedEntry("G-D705","SRT", "Volume").GetAsString(), \
       "DICOM.MeasurementMethodCode": initCodedEntry("126030", "DCM", "Sum of segmented voxel volumes"), \
-      "DICOM.UnitsCode": initCodedEntry("ml","UCUM","milliliter").GetAsString() \
+      "DICOM.UnitsCode": initCodedEntry("cm3","UCUM","cubic centimeter").GetAsString() \
     }
 
     return info[key] if key in info else None
