@@ -12,7 +12,6 @@ class LabelmapSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     self.id = "LM"
     self.keys = tuple(self.name+'.'+m for m in ("voxel_count", "volume_mm3", "volume_cc"))
     self.defaultKeys = self.keys # calculate all measurements by default
-    super(LabelmapSegmentStatisticsCalculator,self).createDefaultOptionsWidget()
     #... developer may add extra options to configure other parameters
 
   def computeStatistics(self, segmentID):
@@ -74,29 +73,22 @@ class LabelmapSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     # DCM has "Number of needles" etc., so probably "Number of voxels"
     # should be added too. Need to discuss with @dclunie. For now, a
     # QIICR private scheme placeholder.
-    info["Labelmap.voxel_count"] = { \
-      "name": "voxel count", \
-      "description": "number of voxels", \
-      "units": "voxels", \
-      'DICOM.QuantityCode': initCodedEntry("nvoxels", "99QIICR", "Number of voxels"),\
-      'DICOM.UnitsCode': initCodedEntry("\{voxels\}", "UCUM", "voxels") \
-      }
 
-    info["Labelmap.volume_mm3"] = {\
-      "name": "volume mm3", \
-      "description": "volume in mm3", \
-      "units": "mm3", \
-      'DICOM.QuantityCode': initCodedEntry("G-D705", "SRT", "Volume"),\
-      'DICOM.UnitsCode': initCodedEntry("mm3", "UCUM", "cubic millimeter") \
-    }
+    info["Labelmap.voxel_count"] = \
+      self.generateMeasurementInfo(name="voxel count", description="number of voxels", units="voxels",
+                                   quantityCode=self.initCodedEntry("nvoxels", "99QIICR", "Number of voxels", True),
+                                   unitsCode=self.initCodedEntry("\{voxels\}", "UCUM", "voxels", True))
 
-    info["Labelmap.volume_cc"] = { \
-      "name": "volume cc", \
-      "description": "volume in cc", \
-      "units": "cc", \
-      "DICOM.QuantityCode": initCodedEntry("G-D705","SRT", "Volume").GetAsString(), \
-      "DICOM.MeasurementMethodCode": initCodedEntry("126030", "DCM", "Sum of segmented voxel volumes"), \
-      "DICOM.UnitsCode": initCodedEntry("cm3","UCUM","cubic centimeter").GetAsString() \
-    }
+    info["Labelmap.volume_mm3"] = \
+      self.generateMeasurementInfo(name="volume mm3", description="volume in mm3", units="mm3",
+                                   quantityCode=self.initCodedEntry("G-D705", "SRT", "Volume", True),
+                                   unitsCode=self.initCodedEntry("mm3", "UCUM", "cubic millimeter", True))
+
+    info["Labelmap.volume_cc"] = \
+      self.generateMeasurementInfo(name="volume cc", description="volume in cc", units="cc",
+                                   quantityCode=self.initCodedEntry("G-D705", "SRT", "Volume", True),
+                                   unitsCode=self.initCodedEntry("cm3", "UCUM", "cubic centimeter", True),
+                                   measurementMethodCode=self.initCodedEntry("126030", "DCM",
+                                                                             "Sum of segmented voxel volumes", True))
 
     return info[key] if key in info else None

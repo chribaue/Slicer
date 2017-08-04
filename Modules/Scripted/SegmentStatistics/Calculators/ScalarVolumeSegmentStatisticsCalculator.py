@@ -11,7 +11,6 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     self.id = "SV"
     self.keys = tuple(self.name+'.'+m for m in ("voxel_count", "volume_mm3", "volume_cc", "min", "max", "mean", "stdev"))
     self.defaultKeys = self.keys # calculate all measurements by default
-    super(ScalarVolumeSegmentStatisticsCalculator,self).createDefaultOptionsWidget()
     #... developer may add extra options to configure other parameters
 
   def computeStatistics(self, segmentID):
@@ -102,73 +101,62 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
 
     scalarVolumeNode = slicer.mrmlScene.GetNodeByID(self.getParameterNode().GetParameter("ScalarVolume"))
 
-    scalarVolumeQuantity = scalarVolumeNode.GetVoxelValueQuantity()
-    scalarVolumeUnits = scalarVolumeNode.GetVoxelValueUnits()
+    try:
+      scalarVolumeQuantity = scalarVolumeNode.GetVoxelValueQuantity()
+      scalarVolumeUnits = scalarVolumeNode.GetVoxelValueUnits()
+    except AttributeError:
+      scalarVolumeQuantity = self.initCodedEntry("", "", "")
+      scalarVolumeUnits = self.initCodedEntry("", "", "")
 
-    noUnits = initCodedEntry("1", "UCUM", "no units")
+    noUnits = self.initCodedEntry("1", "UCUM", "no units", True)
+
+    info = dict()
 
     """Get information (name, description, units, ...) about the measurement for the given key"""
-    info = {}
-    info["Scalar Volume.voxel_count"] = { \
-      "name": "voxel count", \
-      "description": "number of voxels", \
-      "units": "voxels", \
-      'DICOM.QuantityCode': initCodedEntry("nvoxels", "99QIICR", "Number of voxels"),\
-      'DICOM.UnitsCode': initCodedEntry("\{voxels\}", "UCUM", "voxels") \
-      }
 
-    info["Scalar Volume.volume_mm3"] = { \
-      "name": "volume mm3", \
-      "description": "volume in mm3", \
-      "units": "mm3", \
-      'DICOM.QuantityCode': initCodedEntry("G-D705", "SRT", "Volume"),\
-      'DICOM.UnitsCode': initCodedEntry("mm3", "UCUM", "cubic millimeter") \
-    }
+    info["Scalar Volume.voxel_count"] = \
+      self.generateMeasurementInfo(name="voxel count", description="number of voxels", units="voxels",
+                                   quantityCode=self.initCodedEntry("nvoxels", "99QIICR", "Number of voxels", True),
+                                   unitsCode=self.initCodedEntry("\{voxels\}", "UCUM", "voxels", True))
 
-    info["Scalar Volume.volume_cc"] = { \
-      "name": "volume cc", \
-      "description": "volume in cc", \
-      "units": "cc", \
-      "DICOM.QuantityCode": initCodedEntry("G-D705","SRT", "Volume").GetAsString(), \
-      "DICOM.MeasurementMethodCode": initCodedEntry("126030", "DCM", "Sum of segmented voxel volumes"), \
-      "DICOM.UnitsCode": initCodedEntry("cm3","UCUM","cubic centimeter").GetAsString() \
-    }
+    info["Scalar Volume.volume_mm3"] = \
+      self.generateMeasurementInfo(name="volume mm3", description="volume in mm3", units="mm3",
+                                   quantityCode=self.initCodedEntry("G-D705", "SRT", "Volume", True),
+                                   unitsCode=self.initCodedEntry("mm3", "UCUM", "cubic millimeter", True))
 
-    info["Scalar Volume.min"] = { \
-      "name": "minimum", \
-      "description": "minimum scalar value", \
-      "units": scalarVolumeUnits.GetCodeMeaning(), \
-      "DICOM.DerivationCode": \
-      initCodedEntry("R-404FB","SRT","Minimum").GetAsString(), \
-      "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
-      "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
-    }
+    info["Scalar Volume.volume_cc"] = \
+      self.generateMeasurementInfo(name="volume cc", description="volume in cc", units="cc",
+                                   quantityCode=self.initCodedEntry("G-D705", "SRT", "Volume", True),
+                                   unitsCode=self.initCodedEntry("cm3","UCUM","cubic centimeter", True),
+                                   measurementMethodCode=self.initCodedEntry("126030", "DCM",
+                                                                             "Sum of segmented voxel volumes", True))
 
-    info["Scalar Volume.max"] = { \
-      "name": "maximum", \
-      "description": "maximum scalar value", \
-      "units": scalarVolumeUnits.GetCodeMeaning(), \
-      "DICOM.DerivationCode": initCodedEntry("G-A437","SRT","Maximum").GetAsString() \
-      "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
-      "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
-    }
+    info["Scalar Volume.min"] = \
+      self.generateMeasurementInfo(name="minimum", description="minimum scalar value",
+                                   units=scalarVolumeUnits.GetCodeMeaning(),
+                                   quantityCode=scalarVolumeQuantity.GetAsString(),
+                                   unitsCode=scalarVolumeUnits.GetAsString(),
+                                   derivationCode=self.initCodedEntry("R-404FB", "SRT", "Minimum", True))
 
-    info["Scalar Volume.mean"] = { \
-      "name": "mean", \
-      "description": "mean scalar value", \
-      "units": scalarVolumeUnits.GetCodeMeaning(), \
-      "DICOM.DerivationCode": initCodedEntry("R-00317","SRT","Mean").GetAsString() \
-      "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
-      "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
-    }
+    info["Scalar Volume.max"] = \
+      self.generateMeasurementInfo(name="maximum", description="maximum scalar value",
+                                    units=scalarVolumeUnits.GetCodeMeaning(),
+                                    quantityCode=scalarVolumeQuantity.GetAsString(),
+                                    unitsCode=scalarVolumeUnits.GetAsString(),
+                                    derivationCode=self.initCodedEntry("G-A437","SRT","Maximum", True))
 
-    info["Scalar Volume.stdev"] = { \
-      "name": "standard deviation", \
-      "description": "standard deviation of scalar values", \
-      "units": scalarVolumeUnits.GetCodeMeaning(), \
-      'DICOM.DerivationCode': self.getDICOMTriplet('R-10047','SRT','Standard Deviation'), \
-      "DICOM.QuantityCode": scalarVolumeQuantity.GetAsString(), \
-      "DICOM.UnitsCode": scalarVolumeUnits.GetAsString() \
-    }
+    info["Scalar Volume.mean"] = \
+      self.generateMeasurementInfo(name="mean", description="mean scalar value",
+                                   units=scalarVolumeUnits.GetCodeMeaning(),
+                                   quantityCode=scalarVolumeQuantity.GetAsString(),
+                                   unitsCode=scalarVolumeUnits.GetAsString(),
+                                   derivationCode=self.initCodedEntry("R-00317","SRT","Mean", True))
+
+    info["Scalar Volume.stdev"] = \
+      self.generateMeasurementInfo(name="standard deviation", description="standard deviation of scalar values",
+                                   units=scalarVolumeUnits.GetCodeMeaning(),
+                                   quantityCode=scalarVolumeQuantity.GetAsString(),
+                                   unitsCode=scalarVolumeUnits.GetAsString(),
+                                   derivationCode=self.getDICOMTriplet('R-10047','SRT','Standard Deviation'))
 
     return info[key] if key in info else None
