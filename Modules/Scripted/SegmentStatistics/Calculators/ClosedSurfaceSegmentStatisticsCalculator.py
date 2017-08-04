@@ -12,7 +12,6 @@ class ClosedSurfaceSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     self.id = "CS"
     self.keys = tuple(self.name+'.'+m for m in ("surface_mm2", "volume_mm3", "volume_cc"))
     self.defaultKeys = self.keys # calculate all measurements by default
-    super(ClosedSurfaceSegmentStatisticsCalculator,self).createDefaultOptionsWidget()
     #... developer may add extra options to configure other parameters
 
   def computeStatistics(self, segmentID):
@@ -49,34 +48,25 @@ class ClosedSurfaceSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
 
   def getMeasurementInfo(self, key):
     """Get information (name, description, units, ...) about the measurement for the given key"""
-    info = {}
+    info = dict()
 
     # I searched BioPortal, and found seemingly most suitable code.
     # Prefixed with "99" since CHEMINF is not a recognized DICOM coding scheme.
     # See https://bioportal.bioontology.org/ontologies/CHEMINF?p=classes&conceptid=http%3A%2F%2Fsemanticscience.org%2Fresource%2FCHEMINF_000247
     #
-    info["Closed Surface.surface_mm2"] = { \
-      "name": "surface mm2", \
-      "description": "surface area in mm2", \
-      "units": "mm2", \
-      'DICOM.QuantityCode': initCodedEntry("000247", "99CHEMINF", "surface area"),\
-      'DICOM.UnitsCode': initCodedEntry("mm2", "UCUM", "squared millimeters") \
-      }
+    info["Closed Surface.surface_mm2"] = \
+      self.generateMeasurementInfo(name="surface mm2", description="surface area in mm2", units="mm2",
+                                   quantityCode=self.initCodedEntry("000247", "99CHEMINF", "surface area", True),
+                                   unitsCode=self.initCodedEntry("mm2", "UCUM", "squared millimeters", True))
 
-    info["Closed Surface.volume_mm3"] = {\
-      "name": "volume mm3", \
-      "description": "volume in mm3", \
-      "units": "mm3", \
-      'DICOM.QuantityCode': initCodedEntry("G-D705", "SRT", "Volume"),\
-      'DICOM.UnitsCode': initCodedEntry("mm3", "UCUM", "cubic millimeter") \
-    }
+    info["Closed Surface.volume_mm3"] = \
+      self.generateMeasurementInfo(name="volume mm3", description="volume in mm3", units="mm3",
+                                   quantityCode=self.initCodedEntry("G-D705", "SRT", "Volume", True),
+                                   unitsCode=self.initCodedEntry("mm3", "UCUM", "cubic millimeter", True))
 
-    info["Closed Surface.volume_cc"] = {\
-      "name": "volume cc", \
-      "description": "volume in cc", \
-      "units": "cc", \
-      'DICOM.QuantityCode': initCodedEntry("G-D705", "SRT", "Volume"),\
-      'DICOM.UnitsCode': initCodedEntry("cm3", "UCUM", "cubic centimeter") \
-    }
+    info["Closed Surface.volume_cc"] = \
+      self.generateMeasurementInfo(name="volume cc", description="volume in cc", units="cc",
+                                   quantityCode=self.initCodedEntry("G-D705", "SRT", "Volume", True),
+                                   unitsCode=self.initCodedEntry("cm3", "UCUM", "cubic centimeter", True))
 
     return info[key] if key in info else None

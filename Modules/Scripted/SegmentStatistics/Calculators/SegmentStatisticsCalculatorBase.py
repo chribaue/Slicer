@@ -1,16 +1,43 @@
 import vtk
 import qt
+import slicer
 
-def initCodedEntry(codeValue, codingScheme, codeMeaning):
-  entry = slicer.vtkCodedEntry()
-  entry.SetSchemeValueMeaning(codingScheme, codeValue, codeMeaning)
-  return entry
 
 class SegmentStatisticsCalculatorBase(object):
   """Base class for statistics calculators operating on segments.
   Derived classes should specify: self.name, self.keys, self.defaultKeys
   and implement: computeStatistics, getMeasurementInfo
   """
+
+  @staticmethod
+  def initCodedEntry(codeValue, codingScheme, codeMeaning, returnAsString=False):
+    entry = slicer.vtkCodedEntry()
+    entry.SetValueSchemeMeaning(codeValue, codingScheme, codeMeaning)
+    return entry if not returnAsString else entry.GetAsString()
+
+  @staticmethod
+  def getDICOMTriplet(codeValue, codingSchemeDesignator, codeMeaning):
+    """Utility method to form DICOM triplets in getMeasurementInfo"""
+    return {'CodeValue':codeValue,
+            'CodingSchemeDesignator': codingSchemeDesignator,
+            'CodeMeaning': codeMeaning}
+
+  @staticmethod
+  def generateMeasurementInfo(name, description, units, quantityCode, unitsCode, measurementMethodCode=None,
+                              derivationCode=None):
+    info = {
+      "name": name,
+      "description": description,
+      "units": units,
+      "DICOM.QuantityCode": quantityCode,
+      "DICOM.UnitsCode": unitsCode
+      }
+    if measurementMethodCode:
+      info["DICOM.MeasurementMethodCode"] = measurementMethodCode
+    if derivationCode:
+      info["DICOM.DerivationCode"] = derivationCode
+    return info
+
   def __init__(self):
     self.name = "" # name of the statistics calculator
     self.id = "" # short unique identifier for calculator to distinguish between similar measurements by different calculators
@@ -42,12 +69,6 @@ class SegmentStatisticsCalculatorBase(object):
       key = key[len(self.name+'.'):]
     return {"name": key, "description": key, "units": None}
 
-  def getDICOMTriplet(self, codeValue, codingSchemeDesignator, codeMeaning):
-    """Utility method to form DICOM triplets in getMeasurementInfo"""
-    return {'CodeValue':codeValue,
-            'CodingSchemeDesignator': codingSchemeDesignator,
-            'CodeMeaning': codeMeaning}
-
   def setDefaultParameters(self, parameterNode, overwriteExisting=False):
     # enable calculator
     parameter = self.name+'.enabled'
@@ -74,6 +95,7 @@ class SegmentStatisticsCalculatorBase(object):
     if self.parameterNode:
       self.setDefaultParameters(self.parameterNode)
       self.parameterNodeObserver = self.parameterNode.AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateGuiFromParameterNode)
+    self.createDefaultOptionsWidget()
     self.updateGuiFromParameterNode()
 
   def getParameterNode(self):
@@ -145,7 +167,7 @@ class SegmentStatisticsCalculatorBase(object):
   def updateParameterNodeFromGui(self):
     if not self.parameterNode:
       return
-    self.parameterNode.SetParameter(self.name+'.enabled',str(self.calculatorCheckbox.checked))
+    self.parameterNode.SetParameter(self.name+'.enabled', str(self.calculatorCheckbox.checked))
     for (key, checkbox) in self.requestedKeysCheckboxes.iteritems():
       parameter = key+'.enabled'
       newValue = str(checkbox.checked)
@@ -176,4 +198,4 @@ class SegmentStatisticsCalculatorBase(object):
   def requestDefault(self):
     if not self.parameterNode:
       return
-    self.setDefaultParameters(self.parameterNode,overwriteExisting=True)
+    self.setDefaultParameters(self.parameterNode, overwriteExisting=True)
