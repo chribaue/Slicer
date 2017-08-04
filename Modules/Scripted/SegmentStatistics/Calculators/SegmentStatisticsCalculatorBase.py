@@ -3,7 +3,7 @@ import qt
 
 def initCodedEntry(codeValue, codingScheme, codeMeaning):
   entry = slicer.vtkCodedEntry()
-  entry.SetSchemeValueMeaning(codingScheme, codeValue, codeMeaning)
+  entry.SetValueSchemeMeaning(codeValue, codingScheme, codeMeaning)
   return entry
 
 class SegmentStatisticsCalculatorBase(object):
