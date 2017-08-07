@@ -157,6 +157,6 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
                                    units=scalarVolumeUnits.GetCodeMeaning(),
                                    quantityCode=scalarVolumeQuantity.GetAsString(),
                                    unitsCode=scalarVolumeUnits.GetAsString(),
-                                   derivationCode=self.getDICOMTriplet('R-10047','SRT','Standard Deviation'))
+                                   derivationCode=self.initCodedEntry('R-10047','SRT','Standard Deviation', True))
 
     return info[key] if key in info else None
