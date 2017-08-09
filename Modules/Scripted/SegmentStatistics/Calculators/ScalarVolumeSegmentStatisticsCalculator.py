@@ -107,6 +107,10 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     except AttributeError:
       scalarVolumeQuantity = self.initCodedEntry("", "", "")
       scalarVolumeUnits = self.initCodedEntry("", "", "")
+    if not scalarVolumeQuantity:
+      scalarVolumeQuantity = self.initCodedEntry("", "", "")
+    if not scalarVolumeUnits:
+      scalarVolumeUnits = self.initCodedEntry("", "", "")
 
     noUnits = self.initCodedEntry("1", "UCUM", "no units", True)
 
