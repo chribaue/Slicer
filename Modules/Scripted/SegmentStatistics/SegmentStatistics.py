@@ -394,7 +394,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     """Get the calculated statistical measurements"""
     params = self.getParameterNode()
     if not hasattr(params,'statistics'):
-      params.statistics = {"SegmentIDs": []}
+      params.statistics = {"SegmentIDs": [], "MeasurementInfo": {}}
     return params.statistics
 
   def reset(self):
@@ -403,7 +403,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     for calculator in self.calculators:
       self.keys += calculator.keys
     params = self.getParameterNode()
-    params.statistics = {"SegmentIDs":[]}
+    params.statistics = {"SegmentIDs":[], "MeasurementInfo": {}}
 
   def computeStatistics(self):
     """Compute statistical measures for all (visible) segments"""
@@ -448,6 +448,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
         stats = calculator.computeStatistics(segmentID)
         for key in stats:
           statistics[segmentID,key] = stats[key]
+          statistics["MeasurementInfo"][key] = self.getMeasurementInfo(key)
 
   def getCalculatorByKey(self, key):
     """Get calculator responsible for obtaining measurement value for given key"""
@@ -511,7 +512,7 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
       else: # default
         col = table.AddColumn()
       calculator = self.getCalculatorByKey(key)
-      measurementInfo = self.getMeasurementInfo(key)
+      measurementInfo = statistics["MeasurementInfo"][key] if key in statistics["MeasurementInfo"] else {}
       columnName =  measurementInfo['name'] if measurementInfo and 'name' in measurementInfo else key
       columnName += ' ['+calculator.id+']' if (calculator and len(calculatorsWithResults)>1) else ''
       col.SetName( columnName )
