@@ -123,7 +123,7 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     info["Scalar Volume.voxel_count"] = \
       self.generateMeasurementInfo(name="voxel count", description="number of voxels", units="voxels",
                                    quantityCode=self.initCodedEntry("nvoxels", "99QIICR", "Number of voxels", True),
-                                   unitsCode=self.initCodedEntry("\{voxels\}", "UCUM", "voxels", True))
+                                   unitsCode=self.initCodedEntry("voxels", "UCUM", "voxels", True))
 
     info["Scalar Volume.volume_mm3"] = \
       self.generateMeasurementInfo(name="volume mm3", description="volume in mm3", units="mm3",
