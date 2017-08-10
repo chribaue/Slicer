@@ -3,9 +3,6 @@ from slicer.ScriptedLoadableModule import *
 import logging
 from SegmentStatisticsCalculators import *
 
-#
-# SegmentStatistics
-#
 
 class SegmentStatistics(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
@@ -41,9 +38,6 @@ Supported by NA-MIC, NAC, BIRN, NCIGT, and the Slicer Community. See http://www.
     
     import SegmentStatisticsCalculators
 
-#
-# SegmentStatisticsWidget
-#
 
 class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
   """Uses ScriptedLoadableModuleWidget base class, available at:
@@ -58,8 +52,6 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
     self.labelNode = None
     self.parameterNode = None
     self.parameterNodeObserver = None
-    self.fileName = None
-    self.fileDialog = None
 
     # Instantiate and connect widgets ...
     #
@@ -233,7 +225,8 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
     self.parameterNode = self.parameterNodeSelector.currentNode()
     if self.parameterNode:
       self.logic.setParameterNode(self.parameterNode)
-      self.parameterNodeObserver = self.parameterNode.AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateGuiFromParameterNode)
+      self.parameterNodeObserver = self.parameterNode.AddObserver(vtk.vtkCommand.ModifiedEvent,
+                                                                  self.updateGuiFromParameterNode)
 
   def updateGuiFromParameterNode(self, caller=None, event=None):
     if not self.parameterNode:
@@ -255,6 +248,7 @@ class SegmentStatisticsWidget(ScriptedLoadableModuleWidget):
       checkbox = self.calculatorEnabledCheckboxes[calculator.name]
       self.parameterNode.SetParameter(parameter, str(checkbox.checked))
 
+
 class SegmentStatisticsParameterEditorDialog(qt.QDialog):
     """Dialog to edit parameters of segment statistics calculators.
     Most users will only need to call the static method editParameters(...)
@@ -265,7 +259,8 @@ class SegmentStatisticsParameterEditorDialog(qt.QDialog):
       """Executes a modal dialog to edit a segment statistics parameter node if a calculatorName is specified, only
       options for this calculator are displayed"
       """
-      dialog = SegmentStatisticsParameterEditorDialog(parent=None, parameterNode=parameterNode, calculatorName=calculatorName)
+      dialog = SegmentStatisticsParameterEditorDialog(parent=None, parameterNode=parameterNode,
+                                                      calculatorName=calculatorName)
       return dialog.exec_()
 
     def __init__(self,parent=None, parameterNode=None, calculatorName=None):
@@ -274,6 +269,7 @@ class SegmentStatisticsParameterEditorDialog(qt.QDialog):
       self.parameterNode = parameterNode
       self.calculatorName = calculatorName
       self.logic = SegmentStatisticsLogic() # for access to calculators and editor widgets
+      self.logic.setParameterNode(self.parameterNode)
       self.setup()
 
     def setParameterNode(self, parameterNode):
@@ -326,9 +322,6 @@ class SegmentStatisticsParameterEditorDialog(qt.QDialog):
           calculatorOptionsFormLayout.addRow(calculator.optionsWidget)
           self.parametersLayout.addRow(calculatorOptionsCollapsibleButton)
 
-#
-# SegmentStatisticsLogic
-#
 
 class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
   """Implement the logic to calculate label statistics.
@@ -338,7 +331,8 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
   Uses ScriptedLoadableModuleLogic base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
-  registeredCalculators = [LabelmapSegmentStatisticsCalculator, ScalarVolumeSegmentStatisticsCalculator, ClosedSurfaceSegmentStatisticsCalculator]
+  registeredCalculators = [LabelmapSegmentStatisticsCalculator, ScalarVolumeSegmentStatisticsCalculator,
+                           ClosedSurfaceSegmentStatisticsCalculator]
 
   @staticmethod
   def registerCalculator(calculator):
@@ -346,10 +340,13 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     if not isinstance(calculator, SegmentStatisticsCalculatorBase):
       return
     if calculator.name.find(".")>0:
-      logging.warning("Calculator name should not contain '.' as it might mix calculatorname.measurementkey in the parameter node")
+      logging.warning("Calculator name should not contain '.' as it might mix calculatorname.measurementkey in the "
+                      "parameter node")
+
     for key in calculator.keys:
       if key.count(".")>1:
-        logging.warning("Calculator keys should not contain extra '.' as it might mix calculatorname.measurementkey in the parameter node")
+        logging.warning("Calculator keys should not contain extra '.' as it might mix calculatorname.measurementkey in "
+                        "the parameter node")
     if not calculator.__class__ in SegmentStatisticsLogic.registeredCalculators and \
        not calculator.id in [c().id for c in SegmentStatisticsLogic.registeredCalculators]:
       SegmentStatisticsLogic.registeredCalculators.append(calculator.__class__)
@@ -502,7 +499,8 @@ class SegmentStatisticsLogic(ScriptedLoadableModuleLogic):
     statistics = self.getStatistics()
     for key in keys:
       # create table column appropriate for data type; currently supported: float, int, long, string   
-      measurements = [statistics[segmentID, key] for segmentID in statistics["SegmentIDs"] if statistics.has_key((segmentID, key))]
+      measurements = [statistics[segmentID, key] for segmentID in statistics["SegmentIDs"] if
+                      statistics.has_key((segmentID, key))]
       if len(measurements)==0: # there were not measurements and therefore use the default "string" representation
         col = table.AddColumn()
       elif type(measurements[0]) in [int, long]:
@@ -620,13 +618,15 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
     segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(masterVolumeNode)
 
     # Geometry for each segment is defined by: radius, posX, posY, posZ
-    segmentGeometries = [[10, -6,30,28], [20, 0,65,32], [15, 1, -14, 30], [12, 0, 28, -7], [5, 0,30,64], [12, 31, 33, 27], [17, -42, 30, 27]]
+    segmentGeometries = [[10, -6,30,28], [20, 0,65,32], [15, 1, -14, 30], [12, 0, 28, -7], [5, 0,30,64],
+                         [12, 31, 33, 27], [17, -42, 30, 27]]
     for segmentGeometry in segmentGeometries:
       sphereSource = vtk.vtkSphereSource()
       sphereSource.SetRadius(segmentGeometry[0])
       sphereSource.SetCenter(segmentGeometry[1], segmentGeometry[2], segmentGeometry[3])
       sphereSource.Update()
-      segmentationNode.AddSegmentFromClosedSurfaceRepresentation (sphereSource.GetOutput(), segmentationNode.GetSegmentation().GenerateUniqueSegmentID("Test"))
+      uniqueSegmentID = segmentationNode.GetSegmentation().GenerateUniqueSegmentID("Test")
+      segmentationNode.AddSegmentFromClosedSurfaceRepresentation(sphereSource.GetOutput(), uniqueSegmentID)
 
     self.delayDisplay("Compute statistics")
 
@@ -678,7 +678,8 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
     segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(masterVolumeNode)
 
     # Geometry for each segment is defined by: radius, posX, posY, posZ
-    segmentGeometries = [[10, -6,30,28], [20, 0,65,32], [15, 1, -14, 30], [12, 0, 28, -7], [5, 0,30,64], [12, 31, 33, 27], [17, -42, 30, 27]]
+    segmentGeometries = [[10, -6,30,28], [20, 0,65,32], [15, 1, -14, 30], [12, 0, 28, -7], [5, 0,30,64],
+                         [12, 31, 33, 27], [17, -42, 30, 27]]
     for segmentGeometry in segmentGeometries:
       sphereSource = vtk.vtkSphereSource()
       sphereSource.SetRadius(segmentGeometry[0])
@@ -686,7 +687,8 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
       sphereSource.Update()
       segment = vtkSegmentationCore.vtkSegment()
       segment.SetName(segmentationNode.GetSegmentation().GenerateUniqueSegmentID("Test"))
-      segment.AddRepresentation(vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationClosedSurfaceRepresentationName(), sphereSource.GetOutput())
+      closedSurfaceName = vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationClosedSurfaceRepresentationName()
+      segment.AddRepresentation(closedSurfaceName, sphereSource.GetOutput())
       segmentationNode.GetSegmentation().AddSegment(segment)
 
     # test calculating only measurements for selected segments
@@ -700,13 +702,15 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
     segStatLogic.exportToTable(resultsTableNode)
     segStatLogic.showTable(resultsTableNode)
     self.assertEqual( segStatLogic.getStatistics()["Test_2","Labelmap.voxel_count"], 9807)
-    with self.assertRaises(KeyError): segStatLogic.getStatistics()["Test_4","Scalar Volume.voxel count"] # assert there are no result for this segment
+    with self.assertRaises(KeyError): segStatLogic.getStatistics()["Test_4","Scalar Volume.voxel count"]
+    # assert there are no result for this segment
     segStatLogic.updateStatisticsForSegment('Test_4')
     segStatLogic.exportToTable(resultsTableNode)
     segStatLogic.showTable(resultsTableNode)
     self.assertEqual( segStatLogic.getStatistics()["Test_2","Labelmap.voxel_count"], 9807)
     self.assertEqual( segStatLogic.getStatistics()["Test_4","Labelmap.voxel_count"], 380)
-    with self.assertRaises(KeyError): segStatLogic.getStatistics()["Test_5","Scalar Volume.voxel count"] # assert there are no result for this segment
+    with self.assertRaises(KeyError): segStatLogic.getStatistics()["Test_5","Scalar Volume.voxel count"]
+    # assert there are no result for this segment
 
     # calculate measurements for all segments
     segStatLogic.computeStatistics()
@@ -724,7 +728,9 @@ class SegmentStatisticsTest(ScriptedLoadableModuleTest):
       sphereSource.Update()
       segment = segmentationNode.GetSegmentation().GetNthSegment(i)
       segment.RemoveAllRepresentations()
-      segment.AddRepresentation(vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationClosedSurfaceRepresentationName(), sphereSource.GetOutput())
+      closedSurfaceName = vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationClosedSurfaceRepresentationName()
+      segment.AddRepresentation(closedSurfaceName,
+                                sphereSource.GetOutput())
     self.assertEqual( segStatLogic.getStatistics()["Test","Labelmap.voxel_count"], 2948)
     self.assertEqual( segStatLogic.getStatistics()["Test_1","Labelmap.voxel_count"], 23281)
     segStatLogic.updateStatisticsForSegment('Test_1')

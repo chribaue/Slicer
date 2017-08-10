@@ -43,7 +43,6 @@ class SegmentStatisticsCalculatorBase(object):
     self.id = "" # short unique identifier for calculator to distinguish between similar measurements by different calculators
     self.keys = () # keys for all supported measurements; should have format "CalculatorName.measurement"; e.g. "Labelmap.volume cc"
     self.defaultKeys = () # measurements that will be enabled by default
-    self.optionsWidget = qt.QWidget()
     self.requestedKeysCheckboxes = {}
     self.parameterNode = None
     self.parameterNodeObserver = None
@@ -88,13 +87,14 @@ class SegmentStatisticsCalculatorBase(object):
 
   def setParameterNode(self, parameterNode):
     if self.parameterNode==parameterNode:
-        return
+      return
     if self.parameterNode and self.parameterNodeObserver:
       self.parameterNode.RemoveObserver(self.parameterNodeObserver)
     self.parameterNode = parameterNode
     if self.parameterNode:
       self.setDefaultParameters(self.parameterNode)
-      self.parameterNodeObserver = self.parameterNode.AddObserver(vtk.vtkCommand.ModifiedEvent, self.updateGuiFromParameterNode)
+      self.parameterNodeObserver = self.parameterNode.AddObserver(vtk.vtkCommand.ModifiedEvent,
+                                                                  self.updateGuiFromParameterNode)
     self.createDefaultOptionsWidget()
     self.updateGuiFromParameterNode()
 
@@ -103,6 +103,7 @@ class SegmentStatisticsCalculatorBase(object):
 
   def createDefaultOptionsWidget(self):
     # create list of checkboxes that allow selection of requested keys
+    self.optionsWidget = qt.QWidget()
     form = qt.QFormLayout(self.optionsWidget)
 
     # checkbox to enable/disable calculator
