@@ -29,7 +29,8 @@ class LabelmapSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
       return {}
 
     segment = segmentationNode.GetSegmentation().GetSegment(segmentID)
-    segmentLabelmap = segment.GetRepresentation(vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName())
+    segBinaryLabelName = vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName()
+    segmentLabelmap = segment.GetRepresentation(segBinaryLabelName)
 
     # We need to know exactly the value of the segment voxels, apply threshold to make force the selected label value
     labelValue = 1

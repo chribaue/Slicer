@@ -32,7 +32,8 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
       return {}
 
     # Get geometry of grayscale volume node as oriented image data
-    referenceGeometry_Reference = vtkSegmentationCore.vtkOrientedImageData() # reference geometry in reference node coordinate system
+    # reference geometry in reference node coordinate system
+    referenceGeometry_Reference = vtkSegmentationCore.vtkOrientedImageData()
     referenceGeometry_Reference.SetExtent(grayscaleNode.GetImageData().GetExtent())
     ijkToRasMatrix = vtk.vtkMatrix4x4()
     grayscaleNode.GetIJKToRASMatrix(ijkToRasMatrix)
@@ -47,7 +48,8 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
     ccPerCubicMM = 0.001
 
     segment = segmentationNode.GetSegmentation().GetSegment(segmentID)
-    segmentLabelmap = segment.GetRepresentation(vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName())
+    segBinaryLabelName = vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName()
+    segmentLabelmap = segment.GetRepresentation(segBinaryLabelName)
 
     segmentLabelmap_Reference = vtkSegmentationCore.vtkOrientedImageData()
     vtkSegmentationCore.vtkOrientedImageDataResample.ResampleOrientedImageToReferenceOrientedImage(
@@ -144,10 +146,10 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
 
     info["Scalar Volume.max"] = \
       self.generateMeasurementInfo(name="maximum", description="maximum scalar value",
-                                    units=scalarVolumeUnits.GetCodeMeaning(),
-                                    quantityCode=scalarVolumeQuantity.GetAsString(),
-                                    unitsCode=scalarVolumeUnits.GetAsString(),
-                                    derivationCode=self.initCodedEntry("G-A437","SRT","Maximum", True))
+                                   units=scalarVolumeUnits.GetCodeMeaning(),
+                                   quantityCode=scalarVolumeQuantity.GetAsString(),
+                                   unitsCode=scalarVolumeUnits.GetAsString(),
+                                   derivationCode=self.initCodedEntry("G-A437","SRT","Maximum", True))
 
     info["Scalar Volume.mean"] = \
       self.generateMeasurementInfo(name="mean", description="mean scalar value",
@@ -161,6 +163,6 @@ class ScalarVolumeSegmentStatisticsCalculator(SegmentStatisticsCalculatorBase):
                                    units=scalarVolumeUnits.GetCodeMeaning(),
                                    quantityCode=scalarVolumeQuantity.GetAsString(),
                                    unitsCode=scalarVolumeUnits.GetAsString(),
-                                   derivationCode=self.getDICOMTriplet('R-10047','SRT','Standard Deviation'))
+                                   derivationCode=self.initCodedEntry('R-10047','SRT','Standard Deviation', True))
 
     return info[key] if key in info else None
