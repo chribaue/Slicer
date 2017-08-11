@@ -2,7 +2,7 @@
 set(MODULE_NAME SegmentStatistics)
 
 add_subdirectory(SubjectHierarchyPlugins)
-add_subdirectory(Calculators)
+add_subdirectory(SegmentStatisticsCalculators)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
